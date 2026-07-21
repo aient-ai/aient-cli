@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.1.0` for macOS and Linux on Intel and
+The current invited-preview release is `0.1.1` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -23,7 +23,7 @@ Arm. Each release includes:
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.1.0
+VERSION=0.1.1
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
