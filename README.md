@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.1.1` for macOS and Linux on Intel and
+The current invited-preview release is `0.4.0` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -23,7 +23,7 @@ Arm. Each release includes:
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.1.1
+VERSION=0.4.0
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -102,13 +102,19 @@ The default profile uses customer OAuth and never asks for an operator API key:
 ```sh
 aient auth login
 aient auth status
-aient sandbox run --repository . -- go test ./...
+aient sandbox run --environment development -- go test ./...
 aient auth logout
 ```
 
-`auth login` opens the Aient consent flow in your browser. The current preview
-supports create, sync, run, exec, shell, files, logs, and delete. Buffered
-commands and shells cannot detach or reattach yet; do not treat an EOF as a
-durable execution result.
+`auth login` opens the Aient consent flow in your browser. An administrator
+must first enable customer CLI development on the selected environment. The
+current preview supports repository-independent and verified-repository
+development, including brokered environment/GitHub capabilities. Retained
+`sandbox exec` prints an execution UUID, streams live output, and can reconcile
+transport loss through `sandbox execution attach|status|wait|cancel` without
+replaying the command. Output before reattachment is not replayed, and this is
+not durable detach: an unobserved connection-bound execution is cancelled after
+its short server-owned grace. `sandbox run` remains buffered, and each
+`sandbox shell` opens a fresh non-resumable PTY.
 
 For help, contact [support@aient.ai](mailto:support@aient.ai).
