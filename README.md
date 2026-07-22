@@ -103,18 +103,18 @@ The default profile uses customer OAuth and never asks for an operator API key:
 aient auth login
 aient auth status
 aient sandbox run --environment development -- go test ./...
+aient sandbox exec retained-sandbox --workdir /workspace/repo -- go test ./...
 aient auth logout
 ```
 
 `auth login` opens the Aient consent flow in your browser. An administrator
 must first enable customer CLI development on the selected environment. The
-current preview supports repository-independent and verified-repository
-development, including brokered environment/GitHub capabilities. Retained
-`sandbox exec` prints an execution UUID, streams live output, and can reconcile
-transport loss through `sandbox execution attach|status|wait|cancel` without
-replaying the command. Output before reattachment is not replayed, and this is
-not durable detach: an unobserved connection-bound execution is cancelled after
-its short server-owned grace. `sandbox run` remains buffered, and each
-`sandbox shell` opens a fresh non-resumable PTY.
+current preview can infer and server-verify a GitHub repository when repository
+access is requested; a configured remote remains only a selector and never
+grants authority. One-shot `run` remains buffered. Retained `exec` prints an
+execution UUID, streams live bytes, and can reconcile a transient connection
+loss through `sandbox execution attach|status|wait|cancel`. This is bounded
+live supervision, not durable detach: earlier output is not replayed, and PTY
+shells still cannot detach or reattach.
 
 For help, contact [support@aient.ai](mailto:support@aient.ai).
