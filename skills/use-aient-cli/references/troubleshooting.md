@@ -42,13 +42,17 @@ the owning CLI/session operation, then retry once the owner is terminal.
 For retained `sandbox exec`, use the printed execution UUID:
 
 ```sh
-aient sandbox execution status SANDBOX EXECUTION_UUID
-aient sandbox execution attach SANDBOX EXECUTION_UUID
+aient sandbox execution status SANDBOX EXECUTION_UUID \
+  --environment development --repository acme/widget
+aient sandbox execution attach SANDBOX EXECUTION_UUID \
+  --environment development --repository acme/widget
 ```
 
 Do not rerun the original command merely because stdout ended or the network
 returned EOF. A second attachment supersedes the first; coordinate one active
 observer. Output already delivered to an earlier attachment is not replayed.
+Always repeat the original `--environment` and `--repository` selectors for a
+bound customer execution.
 
 If no execution UUID was preserved, status recovery cannot safely identify the
 command. Treat that as a calling-tool lifecycle-handle defect, not evidence

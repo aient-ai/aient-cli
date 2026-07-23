@@ -68,6 +68,15 @@ Read [troubleshooting.md](references/troubleshooting.md) whenever output is
 partial, a connection ends, the workspace is missing/busy, or authentication
 selects the wrong project.
 
+## Protect secret-bearing output
+
+An authorized capability-bearing child command can deliberately print a
+mounted secret. Aient does not persist normal command output, but the connected
+caller, terminal, agent transcript, or task runner may record the returned
+bytes. Assume output is returned verbatim: avoid `env`, `printenv`, shell
+xtrace, and `echo` of `GH_TOKEN` or mounted secret values unless the human
+explicitly requests disclosure.
+
 ## Respect the current boundary
 
 - `operator` is an internal dogfood profile. Do not tell customers to use an
