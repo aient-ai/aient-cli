@@ -1,9 +1,9 @@
 # Sandbox lifecycle and commands
 
 - [One-shot offload](#one-shot-offload)
-- [Retained iteration](#retained-iteration)
+- [Retained customer execution](#retained-customer-execution)
 - [Supervised execution recovery](#supervised-execution-recovery)
-- [Explicit files](#explicit-files)
+- [Explicit files on unbound/operator sandboxes](#explicit-files-on-unboundoperator-sandboxes)
 - [Public 0.6.2 boundary](#public-062-boundary)
 
 ## One-shot offload
@@ -34,10 +34,12 @@ repository synchronization. Use repeatable `--download REMOTE=LOCAL` to fetch
 artifacts before cleanup. For retained customer work, continue with the next
 section.
 
-## Retained iteration
+## Retained customer execution
 
 For a customer OAuth session, create and retain the sandbox through the
-environment-aware `run --keep` path:
+environment-aware `run --keep` path. The initial `run` transfers the selected
+workspace; public `0.6.2` cannot re-sync that environment-bound retained
+sandbox:
 
 ```sh
 aient sandbox run \
@@ -47,38 +49,42 @@ aient sandbox run \
   --repository acme/widget \
   -- true
 
-aient sandbox sync laptop-offload . \
-  --include 'fixtures/local-only/**' \
-  --exclude '**/*.generated'
 aient --timeout 15m sandbox exec laptop-offload \
   --environment development \
   --repository acme/widget \
   --workdir /workspace/repo -- go test ./...
-aient sandbox files ls laptop-offload /workspace/repo
-aient sandbox shell laptop-offload
 aient sandbox delete laptop-offload
 ```
 
-Use `sandbox list`, `status`, and `logs` to inspect named sandboxes. Customer
+Use the bound `execution attach|status|wait|cancel` commands with the same
+environment and repository selectors to observe a supervised `exec`. Customer
 environment inventories use:
 
 ```sh
 aient sandbox list --environment development
 ```
 
-Although public help lists bare `sandbox create`, customer development should
-use `run --keep` so environment and verified-repository authority are bound
-through the customer workflow. Do not copy the lower-level template, CPU,
-memory, named-volume, or metadata flags into customer instructions merely
-because they appear in `create --help`.
+The following endpoints do not accept the environment/repository selectors
+needed to authorize a bound customer sandbox in `0.6.2`:
 
-Each `sandbox shell` opens a fresh, non-resumable PTY. Public `0.6.2` does not
-project brokered environment or GitHub capabilities into that shell; use a
-repository/environment-bound `sandbox exec` when those capabilities are
-required.
+- `sandbox sync`
+- `sandbox files put|get|ls|rm`
+- `sandbox shell`
+- `sandbox status`
+- `sandbox wait`
+- `sandbox logs`
 
-Do not use the customer-visible CPU or memory flags as portable sizing
-controls; current environment policy owns customer resources.
+They are ordinary unbound/operator lifecycle commands, not a customer retained
+loop. Do not work around the authorization failure with an operator credential.
+Create a new environment-bound `sandbox run` to transfer newer local state.
+To inspect the retained workspace, run a specific command such as `ls` through
+bound `sandbox exec`; use bound `sandbox execution status` for one execution
+and `sandbox list --environment development` for customer inventory. Command
+output remains live-only rather than becoming a `sandbox logs` history.
+Although public help also lists bare `sandbox create`, it is not the
+environment-bound customer entry point. Do not copy its template, CPU, memory,
+named-volume, or metadata flags into customer instructions merely because they
+appear in help; current environment policy owns customer resources.
 
 ## Supervised execution recovery
 
@@ -88,27 +94,33 @@ separately:
 
 ```sh
 aient --timeout 15m sandbox exec laptop-offload \
+  --environment development \
+  --repository acme/widget \
   --workdir /workspace/repo -- pnpm test
 ```
 
 After transport loss, never POST the command again. Observe the same execution:
 
 ```sh
-aient sandbox execution status laptop-offload EXECUTION_UUID
-aient sandbox execution attach laptop-offload EXECUTION_UUID
-aient sandbox execution wait laptop-offload EXECUTION_UUID
-aient sandbox execution cancel laptop-offload EXECUTION_UUID
+aient sandbox execution status laptop-offload EXECUTION_UUID \
+  --environment development --repository acme/widget
+aient sandbox execution attach laptop-offload EXECUTION_UUID \
+  --environment development --repository acme/widget
+aient sandbox execution wait laptop-offload EXECUTION_UUID \
+  --environment development --repository acme/widget
+aient sandbox execution cancel laptop-offload EXECUTION_UUID \
+  --environment development --repository acme/widget
 ```
 
-Pass the same `--environment` and `--repository` selectors when the original
-execution required them. Status and wait return content-free state/outcome;
-output is live-only and not replayed. Only one attachment should observe an
-execution at a time.
+Always pass the same `--environment` and `--repository` selectors when the
+original execution required them. Status and wait return content-free
+state/outcome; output is live-only and not replayed. Only one attachment should
+observe an execution at a time.
 
 This is reconnection, not durable detach. An unobserved, connection-bound
 execution is cancelled after its server-owned grace period.
 
-## Explicit files
+## Explicit files on unbound/operator sandboxes
 
 ```sh
 aient sandbox files put SANDBOX LOCAL_PATH /absolute/remote/directory
@@ -117,9 +129,11 @@ aient sandbox files get SANDBOX /absolute/remote/file LOCAL_PATH
 aient sandbox files rm SANDBOX /absolute/remote/path
 ```
 
-Use these for deliberate artifacts, not as a fallback while `sandbox sync` is
-still active. Never upload an access-token file, its hard link, or another
-credential source.
+These commands are available only on the ordinary unbound/operator path in
+`0.6.2`; they cannot target an environment-bound customer sandbox retained by
+`run --keep`. Use them for deliberate artifacts, not as a fallback while
+`sandbox sync` is still active. Never upload an access-token file, its hard
+link, or another credential source.
 
 ## Public 0.6.2 boundary
 
@@ -131,6 +145,8 @@ The `agent` group is reserved but not functional. Sandbox operations include
 
 `suspend`, `resume`, and Docker bootstrap are operator-only. Bare `create` is
 not the environment-bound customer entry point; use `run --keep` for retained
-customer work. Public `0.6.2` does not provide durable detach, port
+customer `exec` work. `sync`, `files`, `shell`, `status`, `wait`, and `logs`
+remain unbound/operator operations and reject that bound customer sandbox.
+Public `0.6.2` does not provide customer retained re-sync, durable detach, port
 publication/forwarding, size presets, shell reattachment, output history, or
 replayed command output.

@@ -1,6 +1,6 @@
 ---
 name: use-aient-cli
-description: "Operate the public Aient CLI for remote development and test offload: customer OAuth login, named project profiles, portable access-only credentials, exact Git/worktree synchronization, one-shot sandbox runs, retained sandbox exec/shell/file workflows, and live execution recovery. Use when asked to run local work in an Aient sandbox, move a checkout between local and remote compute, reconnect to an execution, troubleshoot a CLI transfer or sandbox command, or isolate Aient credentials by organisation, repository, or folder."
+description: "Operate the public Aient CLI for remote development and test offload: customer OAuth login, named project profiles, portable access-only credentials, exact Git/worktree synchronization, one-shot sandbox runs, environment-bound retained exec and recovery, and ordinary unbound file/shell operations. Use when asked to run local work in an Aient sandbox, move a checkout between local and remote compute, reconnect to an execution, troubleshoot a CLI transfer or sandbox command, or isolate Aient credentials by organisation, repository, or folder."
 ---
 
 # Use Aient CLI
@@ -21,11 +21,11 @@ there directly; do not create a nested CLI sandbox.
 ## Choose the workflow
 
 - Run a disposable check: `aient sandbox run --environment development -- pnpm test`
-- Iterate in retained customer compute: `sandbox run --keep`, then `sync`,
-  `exec`, and finally `delete`.
-- Debug interactively: `aient sandbox shell SANDBOX`. Each invocation opens a
-  new, non-resumable shell.
-- Transfer one explicit artifact: `aient sandbox files put|get|ls|rm`.
+- Retain customer compute for more bound commands: `sandbox run --keep`, then
+  environment/repository-bound `exec` or `execution`, and finally `delete`.
+- Use `sync`, `files`, `shell`, `status`, `wait`, and `logs` only for ordinary
+  unbound/operator sandboxes. Public `0.6.2` cannot authorize those endpoints
+  against an environment-bound customer sandbox retained by `run --keep`.
 - Recover a supervised command after transport loss: preserve the execution
   UUID and use `sandbox execution attach|status|wait|cancel`.
 
@@ -73,6 +73,10 @@ selects the wrong project.
 - `operator` is an internal dogfood profile. Do not tell customers to use an
   operator API key, `--auth-env-file`, `sandbox suspend`, `sandbox resume`, or
   Docker bootstrap.
+- Do not promise an iterative re-sync/file/shell loop for a customer sandbox
+  retained from an environment-bound `run --keep`. In `0.6.2`, only bound
+  `exec`/`execution` operations and owner `delete` can use that retained
+  sandbox; create a new `run` to transfer a newer local workspace.
 - Do not claim public `0.6.2` supports a functional `aient agent`, durable
   detach, port publication/forwarding, size presets, resumable shell history,
   or persisted/replayed stdout and stderr.
