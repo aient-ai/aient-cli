@@ -1,0 +1,4 @@
+interface:
+  display_name: "Aient CLI"
+  short_description: "Run local work safely in Aient sandboxes"
+  default_prompt: "Use $use-aient-cli to run this project in an Aient sandbox safely."
