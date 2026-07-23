@@ -27,7 +27,24 @@ aient sandbox run \
 `--workspace` is omitted. Exact Git HEAD, index, tracked changes, and selected
 extra files activate at `/workspace/repo`. `run` deletes its sandbox after the
 command; `--keep` retains it. Use `--include` and `--exclude` for the explicit
-non-Git layer, not to change tracked Git state.
+non-Git layer, not to change tracked Git state. For Git workspace
+synchronization, an `--exclude` is valid only when the same command has at
+least one `--include`; exclusion narrows that explicit extra-file layer rather
+than defining a standalone upload set. Raw `sandbox run --upload` and
+`sandbox files put --exclude` use independent file-transfer filters and do not
+require `--include`.
+`sandbox sync` supports `--remote-dir` for an alternate absolute destination.
+Git synchronization atomically replaces that destination directory, so it must
+name a replaceable child such as `/workspace/alternate-repo`, never the mounted
+`/workspace` root itself:
+
+```sh
+aient sandbox sync laptop-offload . \
+  --remote-dir /workspace/alternate-repo
+```
+
+Raw `--upload` may target `/workspace` because it uses the file-upload path
+rather than Git-directory activation.
 
 For a non-Git tree, use `--upload PATH`; it is a direct file upload rather than
 repository synchronization. Use repeatable `--download REMOTE=LOCAL` to fetch
