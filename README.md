@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.4.0` for macOS and Linux on Intel and
+The current invited-preview release is `0.6.0` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -23,7 +23,7 @@ Arm. Each release includes:
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.4.0
+VERSION=0.6.0
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -109,12 +109,18 @@ aient auth logout
 
 `auth login` opens the Aient consent flow in your browser. An administrator
 must first enable customer CLI development on the selected environment. The
-current preview can infer and server-verify a GitHub repository when repository
-access is requested; a configured remote remains only a selector and never
-grants authority. One-shot `run` remains buffered. Retained `exec` prints an
-execution UUID, streams live bytes, and can reconcile a transient connection
-loss through `sandbox execution attach|status|wait|cancel`. This is bounded
-live supervision, not durable detach: earlier output is not replayed, and PTY
-shells still cannot detach or reattach.
+current preview supports repository-independent and verified-repository
+development, including brokered environment/GitHub capabilities for
+`sandbox run` and retained `sandbox exec`. It may infer a repository selector
+from local Git remotes, but the server verifies authority; a configured remote
+never grants access. Retained
+`sandbox exec` prints an execution UUID, streams live output, and can reconcile
+transport loss through `sandbox execution attach|status|wait|cancel` without
+replaying the command. Use one active terminal per execution: a second live
+attachment supersedes the first, and output received by either attachment is
+not replayed to the other. This is not durable detach: an unobserved
+connection-bound execution is cancelled after its short server-owned grace.
+`sandbox run` remains buffered, and each `sandbox shell` opens a fresh
+non-resumable PTY without brokered environment/GitHub capabilities.
 
 For help, contact [support@aient.ai](mailto:support@aient.ai).
