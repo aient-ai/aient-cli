@@ -21,8 +21,8 @@ there directly; do not create a nested CLI sandbox.
 ## Choose the workflow
 
 - Run a disposable check: `aient sandbox run --environment development -- pnpm test`
-- Iterate in retained compute: `sandbox create`, then `sync`, `exec`, and
-  finally `delete`.
+- Iterate in retained customer compute: `sandbox run --keep`, then `sync`,
+  `exec`, and finally `delete`.
 - Debug interactively: `aient sandbox shell SANDBOX`. Each invocation opens a
   new, non-resumable shell.
 - Transfer one explicit artifact: `aient sandbox files put|get|ls|rm`.

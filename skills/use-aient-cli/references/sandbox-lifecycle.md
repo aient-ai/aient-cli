@@ -31,10 +31,13 @@ non-Git layer, not to change tracked Git state.
 
 For a non-Git tree, use `--upload PATH`; it is a direct file upload rather than
 repository synchronization. Use repeatable `--download REMOTE=LOCAL` to fetch
-artifacts before cleanup.
+artifacts before cleanup. For retained customer work, continue with the next
+section.
 
-To retain an environment/repository-bound sandbox for later brokered exec,
-create it through `run --keep` and keep using the same selectors:
+## Retained iteration
+
+For a customer OAuth session, create and retain the sandbox through the
+environment-aware `run --keep` path:
 
 ```sh
 aient sandbox run \
@@ -44,22 +47,12 @@ aient sandbox run \
   --repository acme/widget \
   -- true
 
-aient sandbox exec laptop-offload \
-  --environment development \
-  --repository acme/widget \
-  --workdir /workspace/repo \
-  -- gh pr status
-```
-
-## Retained iteration
-
-```sh
-aient sandbox create --name laptop-offload --lease-seconds 21600
-aient sandbox wait laptop-offload
 aient sandbox sync laptop-offload . \
   --include 'fixtures/local-only/**' \
   --exclude '**/*.generated'
 aient --timeout 15m sandbox exec laptop-offload \
+  --environment development \
+  --repository acme/widget \
   --workdir /workspace/repo -- go test ./...
 aient sandbox files ls laptop-offload /workspace/repo
 aient sandbox shell laptop-offload
@@ -72,6 +65,12 @@ environment inventories use:
 ```sh
 aient sandbox list --environment development
 ```
+
+Although public help lists bare `sandbox create`, customer development should
+use `run --keep` so environment and verified-repository authority are bound
+through the customer workflow. Do not copy the lower-level template, CPU,
+memory, named-volume, or metadata flags into customer instructions merely
+because they appear in `create --help`.
 
 Each `sandbox shell` opens a fresh, non-resumable PTY. Public `0.6.2` does not
 project brokered environment or GitHub capabilities into that shell; use a
@@ -130,6 +129,8 @@ The `agent` group is reserved but not functional. Sandbox operations include
 `execution attach|status|wait|cancel`, `logs`, `files put|get|ls|rm`, and
 `delete`.
 
-`suspend`, `resume`, and Docker bootstrap are operator-only. Public `0.6.2`
-does not provide durable detach, port publication/forwarding, size presets,
-shell reattachment, output history, or replayed command output.
+`suspend`, `resume`, and Docker bootstrap are operator-only. Bare `create` is
+not the environment-bound customer entry point; use `run --keep` for retained
+customer work. Public `0.6.2` does not provide durable detach, port
+publication/forwarding, size presets, shell reattachment, output history, or
+replayed command output.
