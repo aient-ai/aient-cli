@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.6.1` for macOS and Linux on Intel and
+The current invited-preview release is `0.6.2` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -28,7 +28,7 @@ clone uses the complete-snapshot transfer path.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.6.1
+VERSION=0.6.2
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -80,6 +80,29 @@ mv "${HOME}/bin/.aient.new" "${HOME}/bin/aient"
 Ensure `${HOME}/bin` is on `PATH`. Upgrade by repeating the download,
 verification, and atomic install with a newer published version. Published
 release assets are immutable; Aient fixes a bad release with a new version.
+
+## Install the agent skill
+
+Install the customer CLI workflow skill in the current agent project:
+
+```sh
+npx skills add aient-ai/aient-cli --skill use-aient-cli
+```
+
+Install it globally for Codex:
+
+```sh
+npx skills add aient-ai/aient-cli \
+  --skill use-aient-cli \
+  --agent codex \
+  --global \
+  --yes
+```
+
+The skill covers customer OAuth profiles, project selection, exact workspace
+synchronization, retained execution recovery, and current public command
+boundaries. Native Aient Harness agents already have sandbox tools and should
+not create nested CLI sandboxes.
 
 ## Verify SLSA provenance
 
