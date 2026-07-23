@@ -27,7 +27,9 @@ Never overlap these workspace mutations:
 
 Wait for a terminal result before retrying. After confirmed failure, inspect
 `aient sandbox status SANDBOX`, `aient sandbox files ls SANDBOX /workspace`,
-and safe verbose metadata with `--verbose`.
+and safe verbose metadata with `--verbose` only on an ordinary
+unbound/operator sandbox. Those inspection endpoints reject an
+environment-bound customer sandbox retained by `run --keep` in public `0.6.2`.
 
 ## Workspace busy
 
@@ -40,13 +42,17 @@ the owning CLI/session operation, then retry once the owner is terminal.
 For retained `sandbox exec`, use the printed execution UUID:
 
 ```sh
-aient sandbox execution status SANDBOX EXECUTION_UUID
-aient sandbox execution attach SANDBOX EXECUTION_UUID
+aient sandbox execution status SANDBOX EXECUTION_UUID \
+  --environment development --repository acme/widget
+aient sandbox execution attach SANDBOX EXECUTION_UUID \
+  --environment development --repository acme/widget
 ```
 
 Do not rerun the original command merely because stdout ended or the network
 returned EOF. A second attachment supersedes the first; coordinate one active
 observer. Output already delivered to an earlier attachment is not replayed.
+Always repeat the original `--environment` and `--repository` selectors for a
+bound customer execution.
 
 If no execution UUID was preserved, status recovery cannot safely identify the
 command. Treat that as a calling-tool lifecycle-handle defect, not evidence
@@ -72,6 +78,12 @@ verified installation and policy.
 
 Portable credentials cannot refresh. Export a new access-only token after
 expiry or rejection; do not copy refresh/profile state.
+
+If `sync`, `files`, `shell`, `status`, `wait`, or `logs` rejects a customer
+sandbox retained by environment-bound `run --keep`, do not retry with operator
+credentials. Public `0.6.2` does not route those unbound endpoints through the
+customer environment/repository authorizer. Use bound `exec`/`execution`,
+owner `delete`, or create a fresh `sandbox run` with the newer workspace.
 
 ## Check capability before promising it
 

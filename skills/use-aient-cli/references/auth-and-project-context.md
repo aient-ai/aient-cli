@@ -52,19 +52,32 @@ provider-backed Git push or pull-request operations do.
 Export a short-lived, access-only credential:
 
 ```sh
+AIENT_ACCESS_DIR="$(mktemp -d /tmp/aient-access.XXXXXX)"
+AIENT_ACCESS_FILE="${AIENT_ACCESS_DIR}/acme-access.json"
+cleanup_aient_access() {
+  rm -f -- "${AIENT_ACCESS_FILE}"
+  rmdir -- "${AIENT_ACCESS_DIR}" 2>/dev/null || true
+}
+trap cleanup_aient_access EXIT
+
 aient --profile acme auth export \
   --format file \
   --ttl 15m \
-  --output /secure/path/aient-acme-access.json
+  --output "${AIENT_ACCESS_FILE}"
 
-aient --access-token-file /secure/path/aient-acme-access.json auth status
-aient --access-token-file /secure/path/aient-acme-access.json \
+aient --access-token-file "${AIENT_ACCESS_FILE}" auth status
+aient --access-token-file "${AIENT_ACCESS_FILE}" \
   sandbox list --environment development
+
+cleanup_aient_access
+trap - EXIT
 ```
 
-The file is created atomically with mode `0600`. Keep it outside the uploaded
-workspace and delete it when no longer needed. It has no refresh token and
-cannot be renewed; export a new one after expiry.
+`auth export --format file` creates the file atomically with mode `0600`. The
+JSON contains a short-lived bearer access token: it is a secret even though it
+has no refresh token and cannot be renewed. Keep the temporary directory
+outside the uploaded workspace, leave the cleanup trap active, and export a
+new file after expiry.
 
 Portable sources are mutually exclusive:
 
