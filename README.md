@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.6.2` for macOS and Linux on Intel and
+The current invited-preview release is `0.7.0` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -28,7 +28,7 @@ clone uses the complete-snapshot transfer path.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.6.2
+VERSION=0.7.0
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -150,5 +150,22 @@ not replayed to the other. This is not durable detach: an unobserved
 connection-bound execution is cancelled after its short server-owned grace.
 `sandbox run` remains buffered, and each `sandbox shell` opens a fresh
 non-resumable PTY without brokered environment/GitHub capabilities.
+
+Organisation owners and administrators can set or replace an encrypted
+environment secret after consenting to the dedicated write capability:
+
+```sh
+aient --profile cope auth login
+printf '%s' "$STRIPE_SECRET_KEY" |
+  aient --profile cope environment secrets set \
+    --environment development \
+    STRIPE_SECRET_KEY \
+    --stdin
+```
+
+The profile selects the organisation and `--environment` is required. Secret
+values are never returned by the command. Setting a secret is separate from
+enabling customer CLI workloads and from deciding which environment
+capabilities are sandbox-exportable.
 
 For help, contact [support@aient.ai](mailto:support@aient.ai).
