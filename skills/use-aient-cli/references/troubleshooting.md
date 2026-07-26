@@ -8,9 +8,9 @@ Success requires both:
 - its output contains the final `Synchronized ...` completion line.
 
 Progress such as `56.0 MiB / 448.4 MiB`, a wrapper-level “Script completed,” an
-HTTP 200 observed elsewhere, or a later directory listing is insufficient on
-its own. A generic wrapper may have returned after its tool yielded while the
-child process remained active.
+HTTP 200 observed elsewhere, or a later directory listing is insufficient. A
+wrapper may have returned after its tool yielded while the child process
+remained active.
 
 If an exec tool returns a running session ID, retain it and poll that exact
 session. Do not discard everything except stdout. If the handle was discarded,
@@ -18,24 +18,24 @@ do not infer completion or start compensating mutations. First determine
 whether the original operation is still active from an authoritative operation
 record or process/session view.
 
-Never overlap these workspace mutations:
+Never overlap:
 
 - two syncs;
 - sync plus `files put`;
 - sync plus manual archive extraction;
-- sync plus another operation that replaces or activates the workspace.
+- sync plus another workspace replacement or activation.
 
 Wait for a terminal result before retrying. After confirmed failure, inspect
-`aient sandbox status SANDBOX`, `aient sandbox files ls SANDBOX /workspace`,
-and safe verbose metadata with `--verbose` only on an ordinary
-unbound/operator sandbox. Those inspection endpoints reject an
-environment-bound customer sandbox retained by `run --keep` in public `0.6.2`.
+`sandbox status`, `files ls`, and safe verbose metadata only on an ordinary
+unbound/operator sandbox. For an environment-bound retained customer sandbox,
+use `sandbox status --environment ENV` for lifecycle state and a
+specific bound `sandbox exec` command to inspect its workspace.
 
 ## Workspace busy
 
 A workspace-busy response normally means another mutation owns the exclusive
 fence. Do not bypass it or assemble a second tree manually. Find and wait for
-the owning CLI/session operation, then retry once the owner is terminal.
+the owning CLI/session operation, then retry once that owner is terminal.
 
 ## Execution stream ended
 
@@ -43,20 +43,51 @@ For retained `sandbox exec`, use the printed execution UUID:
 
 ```sh
 aient sandbox execution status SANDBOX EXECUTION_UUID \
-  --environment development --repository acme/widget
+  --environment development \
+  --repository acme/widget
 aient sandbox execution attach SANDBOX EXECUTION_UUID \
-  --environment development --repository acme/widget
+  --environment development \
+  --repository acme/widget
 ```
 
 Do not rerun the original command merely because stdout ended or the network
 returned EOF. A second attachment supersedes the first; coordinate one active
-observer. Output already delivered to an earlier attachment is not replayed.
-Always repeat the original `--environment` and `--repository` selectors for a
-bound customer execution.
+observer. Output already delivered is not replayed. Repeat the original
+`--environment` and any required `--repository` selector.
 
 If no execution UUID was preserved, status recovery cannot safely identify the
 command. Treat that as a calling-tool lifecycle-handle defect, not evidence
 that the CLI command failed or succeeded.
+
+## Sandbox state, readiness, logs, or expiry
+
+For an environment-bound retained sandbox:
+
+```sh
+aient sandbox status SANDBOX --environment development
+aient sandbox wait SANDBOX --environment development
+aient sandbox logs SANDBOX \
+  --environment development \
+  --tail-lines 200
+```
+
+Use `status` for a current nonblocking snapshot, `wait` only for readiness, and
+`logs` for a bounded sandbox log snapshot. To wait for command completion, use
+`sandbox execution wait SANDBOX EXECUTION_UUID` with the original execution
+selectors. Sandbox logs are not retained command output.
+
+Do not increase the default lease merely because foreground work is long.
+Healthy active operations receive bounded rolling protection automatically.
+That protection stops after client loss and cannot cross hard expiry. `--keep`
+is not permanent ownership; explicitly delete a retained sandbox:
+
+```sh
+aient sandbox delete SANDBOX
+```
+
+If a sandbox expires despite an active client, preserve the exact command,
+timestamps, sandbox name, client version, and safe diagnostic output for
+support. Do not recreate first if doing so would destroy evidence.
 
 ## Authentication or wrong customer project
 
@@ -66,24 +97,54 @@ aient auth profiles
 aient --profile EXPECTED auth status
 ```
 
-Inspect the nearest `.aient/config.yaml`, `AIENT_PROFILE`, and explicit global
-flags. Do not solve customer OAuth errors with `--profile operator` or an
-operator API key.
+Inspect the nearest `.aient/config.yaml`, `AIENT_PROFILE`, current directory,
+and explicit global flags. A recovery command started outside the checkout may
+select a different profile. Do not solve customer OAuth errors with
+`--profile operator` or an operator API key.
 
 If a development environment is denied, an organisation administrator must
 enable customer CLI workloads for that environment. Repository inference is
 only a selector; use `--repository owner/name` to disambiguate, but expect the
-server to reject any repository outside the authenticated organisation's
-verified installation and policy.
+server to reject authority outside the authenticated organisation's verified
+installation and policy.
 
 Portable credentials cannot refresh. Export a new access-only token after
 expiry or rejection; do not copy refresh/profile state.
 
-If `sync`, `files`, `shell`, `status`, `wait`, or `logs` rejects a customer
-sandbox retained by environment-bound `run --keep`, do not retry with operator
-credentials. Public `0.6.2` does not route those unbound endpoints through the
-customer environment/repository authorizer. Use bound `exec`/`execution`,
-owner `delete`, or create a fresh `sandbox run` with the newer workspace.
+If `status`, `wait`, or `logs` cannot see an environment-bound sandbox, confirm
+the installed CLI reports `0.8.1` and repeat `--environment`. Do not add
+`--repository` to lifecycle reads. `sync`, `files`, and `shell` remain
+unbound/operator surfaces; do not bypass their rejection with operator
+credentials.
+
+## Broad non-Git upload
+
+An `--exclude` without any `--include` selects every non-Git
+path first. If a proposed command excludes only caches or build output, stop:
+ignored `.env`, `.npmrc`, cloud credentials, SSH keys, and portable Aient
+tokens may still upload.
+
+Prefer narrow `--include` globs. If broad selection is truly required, audit
+the complete non-Git tree and explicitly exclude every credential source.
+Remember that `--exclude` never removes tracked Git files and that there is no
+implicit secret denylist.
+
+## Environment secret write fails
+
+Use an owner/admin profile and stdin:
+
+```sh
+printf '%s' "${SECRET_VALUE}" |
+  aient --profile acme environment secrets set \
+    --environment development \
+    SECRET_NAME \
+    --stdin
+```
+
+An older OAuth session may lack `aient.environment.secrets.write`; log in again
+to complete browser consent. A successful set still does not enable customer
+workloads or mark the value sandbox-exportable. Do not print the secret inside a
+sandbox to verify it.
 
 ## Check capability before promising it
 
@@ -91,10 +152,12 @@ Run the relevant help command:
 
 ```sh
 aient sandbox run --help
+aient sandbox status --help
+aient sandbox wait --help
+aient sandbox logs --help
 aient sandbox exec --help
 aient sandbox execution --help
-aient sandbox files --help
 ```
 
-Do not invent `--detach`, `--port`, `--size`, agent, or resumable-shell
-workflows for public `0.6.2`.
+Do not invent detach, port forwarding, agent, resumable-shell, raw customer
+infrastructure, or persisted-output workflows.
