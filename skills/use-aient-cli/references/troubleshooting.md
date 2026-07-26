@@ -28,7 +28,7 @@ Never overlap:
 Wait for a terminal result before retrying. After confirmed failure, inspect
 `sandbox status`, `files ls`, and safe verbose metadata only on an ordinary
 unbound/operator sandbox. For an environment-bound retained customer sandbox,
-use staged `sandbox status --environment ENV` for lifecycle state and a
+use `sandbox status --environment ENV` for lifecycle state and a
 specific bound `sandbox exec` command to inspect its workspace.
 
 ## Workspace busy
@@ -119,7 +119,7 @@ credentials.
 
 ## Broad non-Git upload
 
-In staged `0.8.1`, an `--exclude` without any `--include` selects every non-Git
+An `--exclude` without any `--include` selects every non-Git
 path first. If a proposed command excludes only caches or build output, stop:
 ignored `.env`, `.npmrc`, cloud credentials, SSH keys, and portable Aient
 tokens may still upload.

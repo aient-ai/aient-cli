@@ -1,8 +1,7 @@
 # Sandbox lifecycle and commands
 
-The published stable release is `0.8.0`. Environment-bound lifecycle reads and
-exclude-only broad selection below are staged for `0.8.1`; require the installed
-binary to report `0.8.1` before using them.
+The published stable release is `0.8.1`. The installed binary's help is the
+authority for its exact command surface.
 
 - [Disposable offload](#disposable-offload)
 - [Retained customer workflow](#retained-customer-workflow)
@@ -89,7 +88,7 @@ entry point, but it creates empty compute; it does not synchronize a checkout.
 Use it for non-workspace workloads, then delete it explicitly.
 
 `sandbox sync`, `sandbox files`, and `sandbox shell` do not accept the
-environment selector in staged `0.8.1`. They remain ordinary unbound/operator
+environment selector. They remain ordinary unbound/operator
 surfaces, not a retained customer loop. Do not use an operator credential to
 bypass that boundary. To transfer a newer customer workspace, create a fresh
 environment-bound `sandbox run`.
@@ -107,7 +106,7 @@ aient sandbox logs laptop-offload \
   --tail-lines 200
 ```
 
-Do not add `--repository` to these commands; their staged help does not accept
+Do not add `--repository` to these commands; their help does not accept
 it, and lifecycle observation does not release provider capability.
 
 Choose the right surface:
@@ -212,7 +211,7 @@ separate:
 | no `--include` and no `--exclude` | none; Git-only synchronization |
 | one or more `--include` | only matching non-Git paths |
 | `--include` plus `--exclude` | included paths minus exclusions |
-| `--exclude` without `--include` in staged `0.8.1` | **all non-Git paths** minus exclusions |
+| `--exclude` without `--include` | **all non-Git paths** minus exclusions |
 
 Exclude-only mode is broad, including ignored paths. It can upload `.env`,
 `.npmrc`, `.aws/credentials`, SSH keys, cloud configuration, portable Aient
@@ -243,7 +242,7 @@ upload rather than Git-directory activation.
 
 ## Public boundary
 
-The staged command groups are `auth`, `environment`, `sandbox`, `version`,
+The command groups are `auth`, `environment`, `sandbox`, `version`,
 `completion`, `help`, and reserved `agent`.
 
 The following remain operator-only:
@@ -258,6 +257,6 @@ the unbound lifecycle path. They may be used with an ordinary unbound customer
 or operator sandbox, but not to bypass an environment-bound customer sandbox's
 authorization boundary.
 
-The `agent` group is reserved for a later slice. Staged `0.8.1` does not provide
+The `agent` group is reserved for a later slice. Version `0.8.1` does not provide
 durable detach, port publication/forwarding, shell reattachment, output
 history, or replayed stdout/stderr.

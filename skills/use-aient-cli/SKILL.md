@@ -6,17 +6,16 @@ description: "Operate the public Aient CLI for remote development and test offlo
 # Use Aient CLI
 
 Use the public customer CLI to run local work remotely without copying operator
-credentials into a project. The published stable release is `0.8.0`; the
-`0.8.1` behavior below is staged pending its signed public release. Check:
+credentials into a project. The published stable release is `0.8.1`. Check:
 
 ```sh
 aient version
 aient --help
 ```
 
-Treat the installed binary's help as authoritative until it reports `0.8.1`.
-When already inside an Aient sandbox or the native Aient Harness, run commands
-there directly; do not create a nested CLI sandbox.
+Treat the installed binary's help as authoritative. When already inside an
+Aient sandbox or the native Aient Harness, run commands there directly; do not
+create a nested CLI sandbox.
 
 ## Choose the workflow
 
@@ -48,7 +47,7 @@ setting an environment secret.
 
 ## Keep environment context on bound operations
 
-In staged `0.8.1`, pass `--environment` to `sandbox list`, `status`, `wait`, and
+Pass `--environment` to `sandbox list`, `status`, `wait`, and
 `logs` when targeting an environment-bound customer sandbox. Do not add
 `--repository` to those lifecycle reads; it is unsupported and grants no useful
 read authority.
@@ -80,7 +79,7 @@ capability policy is a separate decision.
 ## Select uploads safely
 
 With neither `--include` nor `--exclude`, Git synchronization transfers no
-non-Git files. In staged `0.8.1`, exclude-only selection starts with **all**
+non-Git files. Exclude-only selection starts with **all**
 non-Git paths and subtracts exclusions. It can therefore upload ignored `.env`,
 `.npmrc`, cloud credentials, portable token files, and other secrets.
 
@@ -118,7 +117,7 @@ transcript, or task runner may record returned bytes. Avoid `env`, `printenv`,
 shell xtrace, and `echo` of provider tokens or mounted secrets unless the human
 explicitly requests disclosure.
 
-## Respect the staged boundary
+## Respect the public boundary
 
 - Active foreground operations receive bounded lease protection automatically.
   This does not extend the default lease, cross hard expiry, or make `--keep`

@@ -4,10 +4,9 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.8.0` for macOS and Linux on Intel and
-Arm. Guidance for `0.8.1` is staged below so it can be reviewed with the release
-candidate. Until `aient-cli-v0.8.1` is published, treat those sections as
-pending and use the installed binary's `--help` as the authority.
+The current invited-preview release is `0.8.1` for macOS and Linux on Intel and
+Arm. Use the installed binary's `--help` as the authority for its exact command
+surface.
 
 Each published release includes:
 
@@ -32,7 +31,7 @@ clone uses the complete-snapshot transfer path.
 Set the published release version and select the archive for your machine:
 
 ```sh
-VERSION=0.8.0
+VERSION=0.8.1
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -192,8 +191,7 @@ storage fields directly.
 
 For a checkout that must remain available for later commands, retain the
 environment-bound sandbox, preserve the printed execution UUID, and always
-delete the sandbox explicitly. The lifecycle-read commands in this example are
-staged for `0.8.1`:
+delete the sandbox explicitly:
 
 ```sh
 SANDBOX="retained-$(date +%Y%m%d%H%M%S)-$$"
@@ -222,7 +220,7 @@ aient sandbox delete "${SANDBOX}" || exit 1
 trap - EXIT
 ```
 
-In staged `0.8.1`, the lifecycle reads `status`, `wait`, and `logs` require the
+The lifecycle reads `status`, `wait`, and `logs` require the
 same `--environment` context for an environment-bound sandbox:
 
 - `sandbox status` returns the current sandbox lifecycle snapshot.
@@ -275,7 +273,7 @@ command.
 ## Select files deliberately
 
 With no `--include` or `--exclude`, Git synchronization transfers exact tracked
-state and no non-Git files. In staged `0.8.1`, an `--exclude` without any
+state and no non-Git files. An `--exclude` without any
 `--include` first selects **all non-Git paths**, including ignored files, then
 subtracts the exclusions. This broad mode can upload `.env`, `.npmrc`, cloud
 credentials, access-token files, and other local secrets.
