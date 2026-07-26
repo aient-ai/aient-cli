@@ -1,4 +1,4 @@
-# Authentication and project context
+# Authentication, folder context, and secrets
 
 ## Named customer profiles
 
@@ -15,7 +15,7 @@ aient auth profiles default acme
 credential stays in macOS Keychain or Linux Secret Service. Local profile files
 contain non-secret lookup and selection metadata.
 
-Select a profile in this order:
+Select a profile for every invocation in this order:
 
 1. `--profile NAME`
 2. `AIENT_PROFILE=NAME`
@@ -23,11 +23,14 @@ Select a profile in this order:
 4. the user default set by `auth profiles default`
 5. the compatibility profile on an otherwise unconfigured installation
 
-Conflicting `--profile` and `AIENT_PROFILE` values fail closed.
+Conflicting `--profile` and `AIENT_PROFILE` values fail closed. Because folder
+context is resolved from the command's current directory, a recovery command
+run elsewhere must pass `--profile` explicitly or run below the same project
+configuration.
 
 ## Bind a folder to a project
 
-Create `.aient/config.yaml` in the checkout:
+Create `.aient/config.yaml` in the checkout or linked worktree:
 
 ```yaml
 profile: acme
@@ -37,8 +40,9 @@ repository: acme/widget
 
 Only scalar `profile`, `organisation`, and `repository` keys are supported.
 The CLI searches from the current directory upward, so one file can cover a
-whole checkout or linked worktree. Do not put tokens, secrets, API keys, or
-provider credentials in this file.
+whole checkout. Give a different customer, organisation, or worktree its own
+nearest configuration. Do not put tokens, secrets, API keys, or provider
+credentials in this file.
 
 All local values are selectors, never authority. A Git `origin` or `upstream`
 may help infer `owner/name`, but changing a remote does not grant access. The
@@ -46,6 +50,33 @@ server rechecks the signed actor, organisation membership, environment policy,
 sandbox ownership, verified repository record, and provider installation.
 Uploading and testing a local workspace does not require repository authority;
 provider-backed Git push or pull-request operations do.
+
+## Set an environment secret
+
+Use the selected organisation profile, one required environment selector, and
+stdin:
+
+```sh
+printf '%s' "${STRIPE_SECRET_KEY}" |
+  aient --profile acme environment secrets set \
+    --environment development \
+    STRIPE_SECRET_KEY \
+    --stdin
+```
+
+The actor must be an organisation owner or administrator. An older login may
+need `aient --profile acme auth login` again so the browser can consent to
+`aient.environment.secrets.write`. Prefer `--stdin`; the positional value form
+can expose a secret through shell history or process inspection.
+
+The command returns environment/name/update metadata, never the value. Setting
+a secret is independent from both:
+
+- enabling customer CLI workloads on the environment; and
+- marking a capability as sandbox-exportable.
+
+Do not test the write by printing the value inside a sandbox. Confirm only the
+content-free success response and the intended environment/name.
 
 ## Move access without moving refresh authority
 
@@ -58,7 +89,7 @@ cleanup_aient_access() {
   rm -f -- "${AIENT_ACCESS_FILE}"
   rmdir -- "${AIENT_ACCESS_DIR}" 2>/dev/null || true
 }
-trap cleanup_aient_access EXIT
+trap cleanup_aient_access EXIT HUP INT TERM
 
 aient --profile acme auth export \
   --format file \
@@ -70,7 +101,7 @@ aient --access-token-file "${AIENT_ACCESS_FILE}" \
   sandbox list --environment development
 
 cleanup_aient_access
-trap - EXIT
+trap - EXIT HUP INT TERM
 ```
 
 `auth export --format file` creates the file atomically with mode `0600`. The

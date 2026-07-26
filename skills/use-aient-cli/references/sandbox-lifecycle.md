@@ -1,20 +1,30 @@
 # Sandbox lifecycle and commands
 
-- [One-shot offload](#one-shot-offload)
-- [Retained customer execution](#retained-customer-execution)
-- [Supervised execution recovery](#supervised-execution-recovery)
-- [Explicit files on unbound/operator sandboxes](#explicit-files-on-unboundoperator-sandboxes)
-- [Public 0.6.2 boundary](#public-062-boundary)
+The published stable release is `0.8.0`. Environment-bound lifecycle reads and
+exclude-only broad selection below are staged for `0.8.1`; require the installed
+binary to report `0.8.1` before using them.
 
-## One-shot offload
+- [Disposable offload](#disposable-offload)
+- [Retained customer workflow](#retained-customer-workflow)
+- [Lifecycle reads and waits](#lifecycle-reads-and-waits)
+- [Supervised execution recovery](#supervised-execution-recovery)
+- [Compute sizes and lease behavior](#compute-sizes-and-lease-behavior)
+- [Workspace and file selection](#workspace-and-file-selection)
+- [Public boundary](#public-boundary)
+
+## Disposable offload
 
 From a Git checkout:
 
 ```sh
-aient sandbox run --environment development -- pnpm test
+aient sandbox run \
+  --environment development \
+  --size medium \
+  -- pnpm test
 ```
 
-With an explicit repository selector when inference is ambiguous:
+With an explicit repository selector when inference is ambiguous or the command
+needs repository-scoped provider capability:
 
 ```sh
 aient sandbox run \
@@ -23,147 +33,231 @@ aient sandbox run \
   -- pnpm test
 ```
 
-`--environment` implies synchronization of the current workspace when
-`--workspace` is omitted. Exact Git HEAD, index, tracked changes, and selected
-extra files activate at `/workspace/repo`. `run` deletes its sandbox after the
-command; `--keep` retains it. Use `--include` and `--exclude` for the explicit
-non-Git layer, not to change tracked Git state. For Git workspace
-synchronization, an `--exclude` is valid only when the same command has at
-least one `--include`; exclusion narrows that explicit extra-file layer rather
-than defining a standalone upload set. Raw `sandbox run --upload` and
-`sandbox files put --exclude` use independent file-transfer filters and do not
-require `--include`.
-`sandbox sync` supports `--remote-dir` for an alternate absolute destination.
-Git synchronization atomically replaces that destination directory, so it must
-name a replaceable child such as `/workspace/alternate-repo`, never the mounted
-`/workspace` root itself:
-
-```sh
-aient sandbox sync laptop-offload . \
-  --remote-dir /workspace/alternate-repo
-```
-
-Raw `--upload` may target `/workspace` because it uses the file-upload path
-rather than Git-directory activation.
+`--environment` synchronizes the current Git workspace when `--workspace` is
+omitted. Exact Git HEAD, index, tracked changes, and selected non-Git files
+activate at `/workspace/repo`. `run` deletes its sandbox after the command;
+`--keep` retains it.
 
 For a non-Git tree, use `--upload PATH`; it is a direct file upload rather than
-repository synchronization. Use repeatable `--download REMOTE=LOCAL` to fetch
-artifacts before cleanup. For retained customer work, continue with the next
-section.
+repository synchronization. Use repeatable `--download
+ABSOLUTE_REMOTE_PATH=LOCAL_PATH` to fetch artifacts before cleanup.
 
-## Retained customer execution
+## Retained customer workflow
 
-For a customer OAuth session, create and retain the sandbox through the
-environment-aware `run --keep` path. The initial `run` transfers the selected
-workspace; public `0.6.2` cannot re-sync that environment-bound retained
-sandbox:
+Use `run --keep` when a customer checkout must remain available for later
+commands. It creates the environment-bound sandbox and performs the initial
+workspace synchronization in one composition:
 
 ```sh
+SANDBOX="retained-$(date +%Y%m%d%H%M%S)-$$"
+cleanup_sandbox() {
+  aient sandbox delete "${SANDBOX}" >/dev/null 2>&1 || true
+}
+trap cleanup_sandbox EXIT
+
 aient sandbox run \
-  --name laptop-offload \
+  --name "${SANDBOX}" \
   --keep \
   --environment development \
   --repository acme/widget \
-  -- true
+  -- true || exit 1
 
-aient --timeout 15m sandbox exec laptop-offload \
+aient sandbox status "${SANDBOX}" --environment development
+aient sandbox wait "${SANDBOX}" --environment development
+
+aient --timeout 15m sandbox exec "${SANDBOX}" \
   --environment development \
   --repository acme/widget \
-  --workdir /workspace/repo -- go test ./...
-aient sandbox delete laptop-offload
+  --workdir /workspace/repo \
+  -- go test ./...
+
+aient sandbox logs "${SANDBOX}" \
+  --environment development \
+  --tail-lines 200
+
+aient sandbox delete "${SANDBOX}" || exit 1
+trap - EXIT
 ```
 
-Use the bound `execution attach|status|wait|cancel` commands with the same
-environment and repository selectors to observe a supervised `exec`. Customer
-environment inventories use:
+Omit `--repository` from `run` and `exec` when the command does not need
+repository-scoped provider capability and inference is not desired. If the
+original supervised command did require the selector, repeat it for every
+execution recovery operation.
+
+Bare `sandbox create --environment ENV [--size CLASS]` is also a valid customer
+entry point, but it creates empty compute; it does not synchronize a checkout.
+Use it for non-workspace workloads, then delete it explicitly.
+
+`sandbox sync`, `sandbox files`, and `sandbox shell` do not accept the
+environment selector in staged `0.8.1`. They remain ordinary unbound/operator
+surfaces, not a retained customer loop. Do not use an operator credential to
+bypass that boundary. To transfer a newer customer workspace, create a fresh
+environment-bound `sandbox run`.
+
+## Lifecycle reads and waits
+
+Environment-bound inventory and lifecycle reads use the environment context:
 
 ```sh
 aient sandbox list --environment development
+aient sandbox status laptop-offload --environment development
+aient sandbox wait laptop-offload --environment development
+aient sandbox logs laptop-offload \
+  --environment development \
+  --tail-lines 200
 ```
 
-The following endpoints do not accept the environment/repository selectors
-needed to authorize a bound customer sandbox in `0.6.2`:
+Do not add `--repository` to these commands; their staged help does not accept
+it, and lifecycle observation does not release provider capability.
 
-- `sandbox sync`
-- `sandbox files put|get|ls|rm`
-- `sandbox shell`
-- `sandbox status`
-- `sandbox wait`
-- `sandbox logs`
+Choose the right surface:
 
-They are ordinary unbound/operator lifecycle commands, not a customer retained
-loop. Do not work around the authorization failure with an operator credential.
-Create a new environment-bound `sandbox run` to transfer newer local state.
-To inspect the retained workspace, run a specific command such as `ls` through
-bound `sandbox exec`; use bound `sandbox execution status` for one execution
-and `sandbox list --environment development` for customer inventory. Command
-output remains live-only rather than becoming a `sandbox logs` history.
-Although public help also lists bare `sandbox create`, it is not the
-environment-bound customer entry point. Do not copy its template, CPU, memory,
-named-volume, or metadata flags into customer instructions merely because they
-appear in help; current environment policy owns customer resources.
+| Command | Meaning |
+|---|---|
+| `sandbox status SANDBOX` | Return the current lifecycle snapshot without waiting. |
+| `sandbox wait SANDBOX` | Poll until that sandbox becomes ready. |
+| `sandbox logs SANDBOX` | Return a bounded recent sandbox log snapshot. |
+| `sandbox execution status SANDBOX EXECUTION` | Return content-free state for one supervised execution. |
+| `sandbox execution wait SANDBOX EXECUTION` | Wait for that execution's content-free terminal outcome. |
+| `sandbox execution attach SANDBOX EXECUTION` | Attach to new live output; previously delivered bytes are not replayed. |
+
+`sandbox logs` is not command stdout/stderr history. Output from supervised
+`exec` is live-only.
+
+Delete deliberately:
+
+```sh
+aient sandbox delete laptop-offload
+```
+
+Delete intentionally has no environment selector. Cleanup remains owner-scoped
+so revoked or removed environment access cannot strand a retained sandbox.
 
 ## Supervised execution recovery
 
 `sandbox exec` prints an execution UUID before dispatch and streams live
-stdout/stderr. Capture the UUID and the terminal tool's session handle
+stdout/stderr. Preserve that UUID and the calling tool's local session handle
 separately:
 
 ```sh
 aient --timeout 15m sandbox exec laptop-offload \
   --environment development \
   --repository acme/widget \
-  --workdir /workspace/repo -- pnpm test
+  --workdir /workspace/repo \
+  -- pnpm test
 ```
 
-After transport loss, never POST the command again. Observe the same execution:
+After transport loss, never submit the command again. Observe the same
+execution:
 
 ```sh
 aient sandbox execution status laptop-offload EXECUTION_UUID \
-  --environment development --repository acme/widget
+  --environment development \
+  --repository acme/widget
 aient sandbox execution attach laptop-offload EXECUTION_UUID \
-  --environment development --repository acme/widget
+  --environment development \
+  --repository acme/widget
 aient sandbox execution wait laptop-offload EXECUTION_UUID \
-  --environment development --repository acme/widget
+  --environment development \
+  --repository acme/widget
 aient sandbox execution cancel laptop-offload EXECUTION_UUID \
-  --environment development --repository acme/widget
+  --environment development \
+  --repository acme/widget
 ```
 
-Always pass the same `--environment` and `--repository` selectors when the
-original execution required them. Status and wait return content-free
-state/outcome; output is live-only and not replayed. Only one attachment should
-observe an execution at a time.
+Use only one attachment at a time. A second attachment supersedes the first,
+and output already delivered to either attachment is not replayed. Status and
+wait return state/outcome, not command bytes.
 
 This is reconnection, not durable detach. An unobserved, connection-bound
 execution is cancelled after its server-owned grace period.
 
-## Explicit files on unbound/operator sandboxes
+## Compute sizes and lease behavior
+
+Environment-bound customer `create` and `run` accept only:
+
+- `--size small`
+- `--size medium`
+- `--size large`
+
+Omit `--size` to use the environment's configured default. The server resolves
+the selected class to product-owned resources and rejects a class the
+environment does not allow.
+
+Do not copy shared operator flags such as `--template`, `--cpu`, `--memory`,
+`--cpu-limit`, `--memory-limit`, `--metadata`, or `--named-volume` into
+customer instructions. Customer mode rejects raw infrastructure authority.
+
+Active foreground CLI operations automatically receive a short rolling lease
+while they are healthy. Upload, command, shell, download, and bootstrap work do
+not need a longer default lease merely to stay alive. This guarantee:
+
+- never shortens an existing longer lease;
+- does not change the default lease;
+- cannot cross the server-owned hard expiry;
+- stops when the client is lost; and
+- does not make a retained sandbox permanent.
+
+A supervised execution has bounded command-budget and reconnect-grace lease
+coverage. After that window, it does not own the sandbox. Explicitly delete
+retained sandboxes even when they will eventually expire.
+
+## Workspace and file selection
+
+Git synchronization always includes exact tracked state. Non-Git selection is
+separate:
+
+| Flags | Explicit non-Git layer |
+|---|---|
+| no `--include` and no `--exclude` | none; Git-only synchronization |
+| one or more `--include` | only matching non-Git paths |
+| `--include` plus `--exclude` | included paths minus exclusions |
+| `--exclude` without `--include` in staged `0.8.1` | **all non-Git paths** minus exclusions |
+
+Exclude-only mode is broad, including ignored paths. It can upload `.env`,
+`.npmrc`, `.aws/credentials`, SSH keys, cloud configuration, portable Aient
+tokens, dependency caches, and build output unless every such path is excluded.
+There is no implicit secret or cache denylist.
+
+Prefer narrow, repeatable `--include` globs. If broad exclude-only selection is
+unavoidable, inventory the entire non-Git tree first and place an explicit
+secret-upload warning beside the command. Exclusions do not alter tracked Git
+state, so remove a tracked secret from Git rather than relying on `--exclude`.
+
+Keep access-token files outside the workspace. Never upload a token file, its
+hard link, refresh/profile state, an OS credential store, or another credential
+source.
+
+`sandbox sync` supports `--remote-dir` for an alternate absolute destination.
+Git synchronization atomically replaces that destination directory, so use a
+replaceable child such as `/workspace/alternate-repo`, never the mounted
+`/workspace` root:
 
 ```sh
-aient sandbox files put SANDBOX LOCAL_PATH /absolute/remote/directory
-aient sandbox files ls SANDBOX /absolute/remote/directory
-aient sandbox files get SANDBOX /absolute/remote/file LOCAL_PATH
-aient sandbox files rm SANDBOX /absolute/remote/path
+aient sandbox sync unbound-sandbox . \
+  --remote-dir /workspace/alternate-repo
 ```
 
-These commands are available only on the ordinary unbound/operator path in
-`0.6.2`; they cannot target an environment-bound customer sandbox retained by
-`run --keep`. Use them for deliberate artifacts, not as a fallback while
-`sandbox sync` is still active. Never upload an access-token file, its hard
-link, or another credential source.
+Raw `sandbox run --upload` may target `/workspace` because it uses direct file
+upload rather than Git-directory activation.
 
-## Public 0.6.2 boundary
+## Public boundary
 
-Public commands include `auth`, `sandbox`, `version`, `completion`, and `help`.
-The `agent` group is reserved but not functional. Sandbox operations include
-`list`, `create`, `status`, `wait`, `sync`, `run`, `exec`, `shell`,
-`execution attach|status|wait|cancel`, `logs`, `files put|get|ls|rm`, and
-`delete`.
+The staged command groups are `auth`, `environment`, `sandbox`, `version`,
+`completion`, `help`, and reserved `agent`.
 
-`suspend`, `resume`, and Docker bootstrap are operator-only. Bare `create` is
-not the environment-bound customer entry point; use `run --keep` for retained
-customer `exec` work. `sync`, `files`, `shell`, `status`, `wait`, and `logs`
-remain unbound/operator operations and reject that bound customer sandbox.
-Public `0.6.2` does not provide customer retained re-sync, durable detach, port
-publication/forwarding, size presets, shell reattachment, output history, or
-replayed command output.
+The following remain operator-only:
+
+- `--profile operator`, `--api-key`, `--api-url`, and `--auth-env-file`
+- raw template/resource/storage/metadata flags
+- `sandbox suspend` and `sandbox resume`
+- `sandbox docker bootstrap`
+
+`sandbox sync`, `sandbox files`, and `sandbox shell` remain available only on
+the unbound lifecycle path. They may be used with an ordinary unbound customer
+or operator sandbox, but not to bypass an environment-bound customer sandbox's
+authorization boundary.
+
+The `agent` group is reserved for a later slice. Staged `0.8.1` does not provide
+durable detach, port publication/forwarding, shell reattachment, output
+history, or replayed stdout/stderr.
