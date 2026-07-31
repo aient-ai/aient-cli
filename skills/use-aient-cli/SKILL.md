@@ -6,7 +6,7 @@ description: "Operate the public Aient CLI for remote development and test offlo
 # Use Aient CLI
 
 Use the public customer CLI to run local work remotely without copying operator
-credentials into a project. The published stable release is `0.8.1`. Check:
+credentials into a project. The published stable release is `0.9.1`. Check:
 
 ```sh
 aient version
@@ -100,6 +100,14 @@ For any command launched through an agent, task runner, or wrapper:
    successfully and prints its final `Synchronized ...` line.
 4. Do not overlap sync, file upload, extraction, or another workspace mutation.
 5. Use only one live attachment per execution. Earlier bytes are not replayed.
+
+A `503` response is not sufficient evidence by itself. Treat only the exact
+`workspace_layout_certification_busy` machine code as proof that dispatch did
+not happen. Wait for the owning workspace operation to finish, then start the
+command once. Do not attach to or poll the rejected execution, and do not expect
+the CLI to replay it. For a generic `503`, proxy response, truncated body, or
+transport failure, preserve the execution UUID and reconcile that same
+execution; never submit a second start request.
 
 A wrapper's “completed” message, transfer progress, elapsed time, HTTP
 acceptance, or later directory existence does not prove that the original CLI

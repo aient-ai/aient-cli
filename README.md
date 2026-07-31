@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.8.1` for macOS and Linux on Intel and
+The current invited-preview release is `0.9.1` for macOS and Linux on Intel and
 Arm. Use the installed binary's `--help` as the authority for its exact command
 surface.
 
@@ -31,7 +31,7 @@ clone uses the complete-snapshot transfer path.
 Set the published release version and select the archive for your machine:
 
 ```sh
-VERSION=0.8.1
+VERSION=0.9.1
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -239,6 +239,14 @@ This prevents a healthy upload, command, shell, download, or bootstrap from
 being reclaimed merely because its initial lease is short. It does not lengthen
 the default lease, cross the server-owned hard expiry, survive client loss
 indefinitely, or make `--keep` permanent. Delete retained sandboxes when done.
+
+If execution returns HTTP `503` with
+`workspace_layout_certification_busy`, the server rejected the command before
+dispatch. Wait for the workspace operation to finish, then start the command
+once; do not attach to that rejected execution or expect the CLI to replay it.
+A generic `503` or transport failure does not prove rejection and remains
+outcome-ambiguous: preserve the execution UUID and reconcile that same
+execution instead of submitting another command.
 
 ## Select identity and secrets
 
