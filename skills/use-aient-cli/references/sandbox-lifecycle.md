@@ -1,6 +1,6 @@
 # Sandbox lifecycle and commands
 
-The published stable release is `0.8.1`. The installed binary's help is the
+The published stable release is `0.9.1`. The installed binary's help is the
 authority for its exact command surface.
 
 - [Disposable offload](#disposable-offload)
@@ -257,6 +257,6 @@ the unbound lifecycle path. They may be used with an ordinary unbound customer
 or operator sandbox, but not to bypass an environment-bound customer sandbox's
 authorization boundary.
 
-The `agent` group is reserved for a later slice. Version `0.8.1` does not provide
+The `agent` group is reserved for a later slice. Version `0.9.1` does not provide
 durable detach, port publication/forwarding, shell reattachment, output
 history, or replayed stdout/stderr.

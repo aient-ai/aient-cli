@@ -34,8 +34,17 @@ specific bound `sandbox exec` command to inspect its workspace.
 ## Workspace busy
 
 A workspace-busy response normally means another mutation owns the exclusive
-fence. Do not bypass it or assemble a second tree manually. Find and wait for
-the owning CLI/session operation, then retry once that owner is terminal.
+fence. The exact HTTP `503` machine code
+`workspace_layout_certification_busy` proves the command was rejected before
+dispatch. Do not attach to or poll that rejected execution, and do not expect
+the CLI to replay it. Find and wait for the owning CLI/session operation, then
+start the command once after that owner is terminal.
+
+Do not generalize this rule to every `503`. A generic or proxy-authored `503`, a
+truncated response, or a transport failure is outcome-ambiguous. Preserve the
+execution UUID and reconcile that same execution rather than submitting a
+second start request. Never bypass the fence or assemble a second tree
+manually.
 
 ## Execution stream ended
 
@@ -112,7 +121,7 @@ Portable credentials cannot refresh. Export a new access-only token after
 expiry or rejection; do not copy refresh/profile state.
 
 If `status`, `wait`, or `logs` cannot see an environment-bound sandbox, confirm
-the installed CLI reports `0.8.1` and repeat `--environment`. Do not add
+the installed CLI reports `0.9.1` and repeat `--environment`. Do not add
 `--repository` to lifecycle reads. `sync`, `files`, and `shell` remain
 unbound/operator surfaces; do not bypass their rejection with operator
 credentials.
