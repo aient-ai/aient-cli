@@ -139,7 +139,7 @@ Remember that `--exclude` never removes tracked Git files and that there is no
 implicit secret denylist.
 
 Release `0.10.4` automatically omits regular macOS AppleDouble sidecars whose
-base name starts with `._` from recursive broad selection and recursive
+base name starts with `._` from recursive non-Git selection and recursive
 directory uploads. Do not infer a broader cache or secret filter. Git-tracked
 paths and explicitly named single-file uploads remain exact, and local files
 are never removed.

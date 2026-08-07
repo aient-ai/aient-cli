@@ -218,7 +218,7 @@ Exclude-only mode is broad, including ignored paths. It can upload `.env`,
 tokens, dependency caches, and build output unless every such path is excluded.
 There is no implicit secret or cache denylist.
 
-Recursive broad non-Git selection and recursive `sandbox files put` directory
+Recursive non-Git selection and recursive `sandbox files put` directory
 uploads omit regular macOS AppleDouble sidecars whose base name starts with
 `._`. The filter does not change Git-tracked paths, explicitly named
 single-file uploads, ordinary dotfiles, directories named `._*`, or local
@@ -261,7 +261,11 @@ aient sandbox run \
 
 Reset paths are exact directory paths, not globs. The operation changes only
 the remote candidate; local files are not removed or modified. Do not reset a
-directory whose contents the remote command still needs.
+directory whose contents the remote command still needs. The repository root,
+absolute paths, wildcard paths, any `.` or `..` component, `.git`, duplicates,
+overlapping reset roots, Git-tracked content, and Gitlink boundaries fail
+locally before network side effects. Reset cannot be combined with
+`--exclude`.
 
 ### Initialized submodule policy
 

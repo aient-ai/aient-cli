@@ -146,7 +146,8 @@ npx skills add aient-ai/aient-cli \
 
 The skill covers customer OAuth profiles, folder-specific project selection,
 exact workspace synchronization, retained execution recovery, environment
-secrets, and current public command boundaries. Native Aient Harness agents
+secrets, exact generated-directory reset, clean initialized-submodule Gitlink
+boundaries, and current public command boundaries. Native Aient Harness agents
 already have sandbox tools and should not create nested CLI sandboxes.
 
 ## Verify SLSA provenance
@@ -287,7 +288,7 @@ subtracts the exclusions. This broad mode can upload `.env`, `.npmrc`, cloud
 credentials, access-token files, and other local secrets.
 
 Release `0.10.4` omits regular macOS AppleDouble sidecars whose base name starts
-with `._` from broad recursive non-Git selection and recursive directory
+with `._` from recursive non-Git selection and recursive directory
 uploads. The filter runs before archive, manifest, byte-count, and digest
 construction. It does not alter the local source, Git-tracked paths, an
 explicitly named single-file upload, ordinary dotfiles, directories named
@@ -313,9 +314,13 @@ aient sandbox run \
 Each reset path is repository-relative and exact, not a glob. It replaces that
 remote directory with an empty ordinary directory during the same certified
 workspace activation; it never deletes or edits the local directory. Do not
-use reset as a substitute for selecting required source files.
+use reset as a substitute for selecting required source files. The repository
+root, absolute paths, wildcard paths, any `.` or `..` component, `.git`,
+duplicates, overlapping reset roots, Git-tracked content, and Gitlink
+boundaries fail locally before network side effects. Reset cannot be combined
+with `--exclude`.
 
-Initialized submodules remain rejected by default. If the command deliberately
+Initialized submodules are rejected by default. If the command deliberately
 needs only the parent repository's Gitlink boundary and not checked-out child
 bytes, opt in explicitly:
 
