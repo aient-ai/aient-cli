@@ -121,7 +121,7 @@ Portable credentials cannot refresh. Export a new access-only token after
 expiry or rejection; do not copy refresh/profile state.
 
 If `status`, `wait`, or `logs` cannot see an environment-bound sandbox, confirm
-the installed CLI reports `0.9.1` and repeat `--environment`. Do not add
+the installed CLI reports `0.10.4` and repeat `--environment`. Do not add
 `--repository` to lifecycle reads. `sync`, `files`, and `shell` remain
 unbound/operator surfaces; do not bypass their rejection with operator
 credentials.
@@ -137,6 +137,12 @@ Prefer narrow `--include` globs. If broad selection is truly required, audit
 the complete non-Git tree and explicitly exclude every credential source.
 Remember that `--exclude` never removes tracked Git files and that there is no
 implicit secret denylist.
+
+Release `0.10.4` automatically omits regular macOS AppleDouble sidecars whose
+base name starts with `._` from recursive broad selection and recursive
+directory uploads. Do not infer a broader cache or secret filter. Git-tracked
+paths and explicitly named single-file uploads remain exact, and local files
+are never removed.
 
 ## Environment secret write fails
 

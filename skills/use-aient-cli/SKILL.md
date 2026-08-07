@@ -6,7 +6,7 @@ description: "Operate the public Aient CLI for remote development and test offlo
 # Use Aient CLI
 
 Use the public customer CLI to run local work remotely without copying operator
-credentials into a project. The published stable release is `0.9.1`. Check:
+credentials into a project. The published stable release is `0.10.4`. Check:
 
 ```sh
 aient version
@@ -83,10 +83,31 @@ non-Git files. Exclude-only selection starts with **all**
 non-Git paths and subtracts exclusions. It can therefore upload ignored `.env`,
 `.npmrc`, cloud credentials, portable token files, and other secrets.
 
+Recursive broad selection and recursive directory uploads omit regular macOS
+AppleDouble sidecars whose base name starts with `._`. Git-tracked paths,
+explicit single-file uploads, ordinary dotfiles, directories named `._*`, and
+the local source remain exact. This is the only implicit metadata filter; it is
+not a cache or secret denylist.
+
 Prefer narrow `--include` globs. Use exclude-only mode only after auditing the
 whole non-Git tree and explicitly excluding every credential source. Exclusions
 do not remove tracked Git files. Never upload an access-token file, a hard link
 to it, profile refresh state, or an operating-system credential store.
+
+## Use exact workspace policies
+
+Use repeatable `--reset-remote-dir REPOSITORY_RELATIVE_DIRECTORY` on
+`sandbox run` or ordinary unbound `sandbox sync` only when a generated remote
+directory must be replaced by an empty ordinary directory in the same certified
+activation. The path is exact, not a glob, and the local directory is never
+deleted or modified.
+
+Initialized submodules fail closed by default. Use
+`--submodules=gitlinks` only when the command deliberately needs the parent
+repository without child content. Every initialized child and descendant must
+be clean and checked out at the exact parent-index object. The CLI transfers
+the complete Gitlink boundary and omits child bytes; this is not recursive
+submodule transfer.
 
 ## Preserve operation truth
 
