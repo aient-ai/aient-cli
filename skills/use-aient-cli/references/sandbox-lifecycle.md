@@ -1,6 +1,6 @@
 # Sandbox lifecycle and commands
 
-The published stable release is `0.9.1`. The installed binary's help is the
+The published stable release is `0.10.4`. The installed binary's help is the
 authority for its exact command surface.
 
 - [Disposable offload](#disposable-offload)
@@ -218,6 +218,13 @@ Exclude-only mode is broad, including ignored paths. It can upload `.env`,
 tokens, dependency caches, and build output unless every such path is excluded.
 There is no implicit secret or cache denylist.
 
+Recursive non-Git selection and recursive directory uploads through
+`sandbox run --upload DIRECTORY` and
+`sandbox files put SANDBOX DIRECTORY ABSOLUTE_REMOTE_DIRECTORY` omit regular
+macOS AppleDouble sidecars whose base name starts with `._`. The filter does not
+change Git-tracked paths, explicitly named single-file uploads, ordinary
+dotfiles, directories named `._*`, or local source bytes.
+
 Prefer narrow, repeatable `--include` globs. If broad exclude-only selection is
 unavoidable, inventory the entire non-Git tree first and place an explicit
 secret-upload warning beside the command. Exclusions do not alter tracked Git
@@ -240,6 +247,46 @@ aient sandbox sync unbound-sandbox . \
 Raw `sandbox run --upload` may target `/workspace` because it uses direct file
 upload rather than Git-directory activation.
 
+### Exact generated-directory reset
+
+Use repeatable `--reset-remote-dir` on `sandbox run` or ordinary unbound
+`sandbox sync` when an exact repository-relative generated directory must be
+replaced by an empty ordinary directory during the same certified activation:
+
+```sh
+aient sandbox run \
+  --environment development \
+  --reset-remote-dir packages/example/dist \
+  -- pnpm test
+```
+
+Reset paths are exact directory paths, not globs. The operation changes only
+the remote candidate; local files are not removed or modified. Do not reset a
+directory whose contents the remote command still needs. The repository root,
+absolute paths, wildcard paths, any `.` or `..` component, `.git`, duplicates,
+overlapping reset roots, Git-tracked content, and Gitlink boundaries fail
+locally before network side effects. Reset cannot be combined with
+`--exclude`.
+
+### Initialized submodule policy
+
+Initialized submodules are rejected by default. Use
+`--submodules=gitlinks` only when the command needs the parent repository but
+deliberately does not need checked-out child content:
+
+```sh
+aient sandbox run \
+  --environment development \
+  --submodules=gitlinks \
+  -- go test ./...
+```
+
+Every initialized child and descendant must be clean and checked out at the
+exact object recorded by its parent index. The CLI transfers the complete
+sorted Gitlink boundary and omits child bytes. Dirty, untracked, mismatched,
+malformed, or ambiguous child state fails locally. This policy is not recursive
+submodule transfer.
+
 ## Public boundary
 
 The command groups are `auth`, `environment`, `sandbox`, `version`,
@@ -257,6 +304,6 @@ the unbound lifecycle path. They may be used with an ordinary unbound customer
 or operator sandbox, but not to bypass an environment-bound customer sandbox's
 authorization boundary.
 
-The `agent` group is reserved for a later slice. Version `0.9.1` does not provide
+The `agent` group is reserved for a later slice. Version `0.10.4` does not provide
 durable detach, port publication/forwarding, shell reattachment, output
 history, or replayed stdout/stderr.

@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current invited-preview release is `0.9.1` for macOS and Linux on Intel and
+The current invited-preview release is `0.10.4` for macOS and Linux on Intel and
 Arm. Use the installed binary's `--help` as the authority for its exact command
 surface.
 
@@ -31,7 +31,7 @@ clone uses the complete-snapshot transfer path.
 Set the published release version and select the archive for your machine:
 
 ```sh
-VERSION=0.9.1
+VERSION=0.10.4
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -146,7 +146,8 @@ npx skills add aient-ai/aient-cli \
 
 The skill covers customer OAuth profiles, folder-specific project selection,
 exact workspace synchronization, retained execution recovery, environment
-secrets, and current public command boundaries. Native Aient Harness agents
+secrets, exact generated-directory reset, clean initialized-submodule Gitlink
+boundaries, and current public command boundaries. Native Aient Harness agents
 already have sandbox tools and should not create nested CLI sandboxes.
 
 ## Verify SLSA provenance
@@ -286,11 +287,58 @@ state and no non-Git files. An `--exclude` without any
 subtracts the exclusions. This broad mode can upload `.env`, `.npmrc`, cloud
 credentials, access-token files, and other local secrets.
 
+Release `0.10.4` omits regular macOS AppleDouble sidecars whose base name starts
+with `._` from recursive non-Git selection and recursive directory uploads
+through `sandbox run --upload DIRECTORY` and
+`sandbox files put SANDBOX DIRECTORY ABSOLUTE_REMOTE_DIRECTORY`. The filter
+runs before archive, manifest, byte-count, and digest construction. It does not
+alter the local source, Git-tracked paths, an explicitly named single-file
+upload, ordinary dotfiles, directories named `._*`, or names containing `._`
+away from the beginning of the base name.
+
 Prefer narrow, repeatable `--include` globs. Use exclude-only selection only
 after auditing the complete non-Git tree and explicitly excluding every
 credential source. Exclusions never remove tracked Git files. Keep portable
 access-token files outside the uploaded workspace and never upload them, a hard
 link to them, profile refresh state, or an operating-system credential store.
+
+For a generated directory that must be rebuilt from an empty ordinary
+directory, use the repeatable exact-path reset on `sandbox run` or ordinary
+unbound `sandbox sync`:
+
+```sh
+aient sandbox run \
+  --environment development \
+  --reset-remote-dir packages/example/dist \
+  -- pnpm test
+```
+
+Each reset path is repository-relative and exact, not a glob. It replaces that
+remote directory with an empty ordinary directory during the same certified
+workspace activation; it never deletes or edits the local directory. Do not
+use reset as a substitute for selecting required source files. The repository
+root, absolute paths, wildcard paths, any `.` or `..` component, `.git`,
+duplicates, overlapping reset roots, Git-tracked content, and Gitlink
+boundaries fail locally before network side effects. Reset cannot be combined
+with `--exclude`.
+
+Initialized submodules are rejected by default. If the command deliberately
+needs only the parent repository's Gitlink boundary and not checked-out child
+bytes, opt in explicitly:
+
+```sh
+aient sandbox run \
+  --environment development \
+  --submodules=gitlinks \
+  -- go test ./...
+```
+
+The CLI requires every initialized child and descendant to be clean and checked
+out at the exact object recorded by its parent index. It transfers the complete
+sorted parent-index Gitlink set while omitting child content. Dirty, untracked,
+mismatched, malformed, or ambiguous child state fails locally. This is not
+recursive submodule transfer; commands that consume child files need another
+supported source path.
 
 `auth login` opens the Aient consent flow in your browser. An administrator
 must first enable customer CLI development on the selected environment. A

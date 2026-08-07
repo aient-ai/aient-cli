@@ -1,12 +1,12 @@
 ---
 name: use-aient-cli
-description: "Operate the public Aient CLI for remote development and test offload: customer OAuth and folder-scoped profiles, portable access-only credentials, exact Git/worktree synchronization, disposable and retained environment sandboxes, size presets, lifecycle reads, supervised execution recovery, environment-secret administration, and safe non-Git file selection. Use when asked to run local work in an Aient sandbox, move a checkout between local and remote compute, inspect or clean up a retained sandbox, reconnect to an execution, troubleshoot a CLI transfer, set an environment secret, or isolate Aient credentials by organisation, repository, or folder."
+description: "Operate the public Aient CLI for remote development and test offload: customer OAuth and folder-scoped profiles, portable access-only credentials, exact Git/worktree synchronization, generated-directory reset, clean initialized-submodule Gitlink boundaries, disposable and retained environment sandboxes, size presets, lifecycle reads, supervised execution recovery, environment-secret administration, and safe non-Git file selection. Use when asked to run local work remotely, move a checkout, inspect or clean up a retained sandbox, reset generated output, omit initialized submodule content safely, recover an execution, troubleshoot a transfer, set an environment secret, or isolate credentials by organisation, repository, or folder."
 ---
 
 # Use Aient CLI
 
 Use the public customer CLI to run local work remotely without copying operator
-credentials into a project. The published stable release is `0.9.1`. Check:
+credentials into a project. The published stable release is `0.10.4`. Check:
 
 ```sh
 aient version
@@ -83,10 +83,36 @@ non-Git files. Exclude-only selection starts with **all**
 non-Git paths and subtracts exclusions. It can therefore upload ignored `.env`,
 `.npmrc`, cloud credentials, portable token files, and other secrets.
 
+Recursive non-Git selection and recursive directory uploads through
+`sandbox run --upload DIRECTORY` and
+`sandbox files put SANDBOX DIRECTORY ABSOLUTE_REMOTE_DIRECTORY` omit regular
+macOS AppleDouble sidecars whose base name starts with `._`. Git-tracked paths,
+explicit single-file uploads, ordinary dotfiles, directories named `._*`, and
+the local source remain exact. This is the only implicit metadata filter; it is
+not a cache or secret denylist.
+
 Prefer narrow `--include` globs. Use exclude-only mode only after auditing the
 whole non-Git tree and explicitly excluding every credential source. Exclusions
 do not remove tracked Git files. Never upload an access-token file, a hard link
 to it, profile refresh state, or an operating-system credential store.
+
+## Use exact workspace policies
+
+Use repeatable `--reset-remote-dir REPOSITORY_RELATIVE_DIRECTORY` on
+`sandbox run` or ordinary unbound `sandbox sync` only when a generated remote
+directory must be replaced by an empty ordinary directory in the same certified
+activation. The path is exact, not a glob, and the local directory is never
+deleted or modified. The repository root, absolute paths, wildcard paths, any
+`.` or `..` component, `.git`, duplicates, overlapping reset roots,
+Git-tracked content, and Gitlink boundaries fail locally before network side
+effects. Reset cannot be combined with `--exclude`.
+
+Initialized submodules fail closed by default. Use
+`--submodules=gitlinks` only when the command deliberately needs the parent
+repository without child content. Every initialized child and descendant must
+be clean and checked out at the exact parent-index object. The CLI transfers
+the complete Gitlink boundary and omits child bytes; this is not recursive
+submodule transfer.
 
 ## Preserve operation truth
 
