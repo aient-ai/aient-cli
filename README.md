@@ -288,11 +288,13 @@ subtracts the exclusions. This broad mode can upload `.env`, `.npmrc`, cloud
 credentials, access-token files, and other local secrets.
 
 Release `0.10.4` omits regular macOS AppleDouble sidecars whose base name starts
-with `._` from recursive non-Git selection and recursive directory
-uploads. The filter runs before archive, manifest, byte-count, and digest
-construction. It does not alter the local source, Git-tracked paths, an
-explicitly named single-file upload, ordinary dotfiles, directories named
-`._*`, or names containing `._` away from the beginning of the base name.
+with `._` from recursive non-Git selection and recursive directory uploads
+through `sandbox run --upload DIRECTORY` and
+`sandbox files put SANDBOX DIRECTORY ABSOLUTE_REMOTE_DIRECTORY`. The filter
+runs before archive, manifest, byte-count, and digest construction. It does not
+alter the local source, Git-tracked paths, an explicitly named single-file
+upload, ordinary dotfiles, directories named `._*`, or names containing `._`
+away from the beginning of the base name.
 
 Prefer narrow, repeatable `--include` globs. Use exclude-only selection only
 after auditing the complete non-Git tree and explicitly excluding every

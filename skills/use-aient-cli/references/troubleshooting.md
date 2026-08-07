@@ -140,9 +140,10 @@ implicit secret denylist.
 
 Release `0.10.4` automatically omits regular macOS AppleDouble sidecars whose
 base name starts with `._` from recursive non-Git selection and recursive
-directory uploads. Do not infer a broader cache or secret filter. Git-tracked
-paths and explicitly named single-file uploads remain exact, and local files
-are never removed.
+directory uploads through `sandbox run --upload DIRECTORY` and
+`sandbox files put SANDBOX DIRECTORY ABSOLUTE_REMOTE_DIRECTORY`. Do not infer a
+broader cache or secret filter. Git-tracked paths and explicitly named
+single-file uploads remain exact, and local files are never removed.
 
 ## Environment secret write fails
 

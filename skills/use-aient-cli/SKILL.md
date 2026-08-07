@@ -1,6 +1,6 @@
 ---
 name: use-aient-cli
-description: "Operate the public Aient CLI for remote development and test offload: customer OAuth and folder-scoped profiles, portable access-only credentials, exact Git/worktree synchronization, generated-directory reset, clean initialized-submodule Gitlink boundaries, disposable and retained environment sandboxes, lifecycle reads, supervised execution recovery, environment-secret administration, and safe non-Git file selection. Use when asked to run local work remotely, move a checkout, reset generated output, omit initialized submodule content safely, recover an execution, troubleshoot a transfer, set an environment secret, or isolate credentials by organisation, repository, or folder."
+description: "Operate the public Aient CLI for remote development and test offload: customer OAuth and folder-scoped profiles, portable access-only credentials, exact Git/worktree synchronization, generated-directory reset, clean initialized-submodule Gitlink boundaries, disposable and retained environment sandboxes, size presets, lifecycle reads, supervised execution recovery, environment-secret administration, and safe non-Git file selection. Use when asked to run local work remotely, move a checkout, inspect or clean up a retained sandbox, reset generated output, omit initialized submodule content safely, recover an execution, troubleshoot a transfer, set an environment secret, or isolate credentials by organisation, repository, or folder."
 ---
 
 # Use Aient CLI
@@ -83,8 +83,10 @@ non-Git files. Exclude-only selection starts with **all**
 non-Git paths and subtracts exclusions. It can therefore upload ignored `.env`,
 `.npmrc`, cloud credentials, portable token files, and other secrets.
 
-Recursive non-Git selection and recursive directory uploads omit regular macOS
-AppleDouble sidecars whose base name starts with `._`. Git-tracked paths,
+Recursive non-Git selection and recursive directory uploads through
+`sandbox run --upload DIRECTORY` and
+`sandbox files put SANDBOX DIRECTORY ABSOLUTE_REMOTE_DIRECTORY` omit regular
+macOS AppleDouble sidecars whose base name starts with `._`. Git-tracked paths,
 explicit single-file uploads, ordinary dotfiles, directories named `._*`, and
 the local source remain exact. This is the only implicit metadata filter; it is
 not a cache or secret denylist.

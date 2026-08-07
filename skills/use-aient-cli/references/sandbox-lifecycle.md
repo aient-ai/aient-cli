@@ -218,11 +218,12 @@ Exclude-only mode is broad, including ignored paths. It can upload `.env`,
 tokens, dependency caches, and build output unless every such path is excluded.
 There is no implicit secret or cache denylist.
 
-Recursive non-Git selection and recursive `sandbox files put` directory
-uploads omit regular macOS AppleDouble sidecars whose base name starts with
-`._`. The filter does not change Git-tracked paths, explicitly named
-single-file uploads, ordinary dotfiles, directories named `._*`, or local
-source bytes.
+Recursive non-Git selection and recursive directory uploads through
+`sandbox run --upload DIRECTORY` and
+`sandbox files put SANDBOX DIRECTORY ABSOLUTE_REMOTE_DIRECTORY` omit regular
+macOS AppleDouble sidecars whose base name starts with `._`. The filter does not
+change Git-tracked paths, explicitly named single-file uploads, ordinary
+dotfiles, directories named `._*`, or local source bytes.
 
 Prefer narrow, repeatable `--include` globs. If broad exclude-only selection is
 unavoidable, inventory the entire non-Git tree first and place an explicit
