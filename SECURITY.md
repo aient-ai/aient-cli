@@ -23,9 +23,17 @@ https://token.actions.githubusercontent.com
 ```
 
 Verification must use that exact identity. Do not replace it with a permissive
-regular expression. The SLSA source URI is likewise `github.com/haf/glimt`.
-The private repository identity is public in the transparency and provenance
-records; private source content is not.
+regular expression. The distinct SLSA provenance builder identity is:
+
+```text
+https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1
+```
+
+The builder tag is protected against creation, update, and deletion with no
+bypass actors. SLSA verification must pin that exact builder identity as well
+as source URI `github.com/haf/glimt` and the release tag. The private repository
+identity is public in the transparency and provenance records; private source
+content is not.
 
 GitHub's generated source archives contain only this repository's public
 documentation and are not part of the verified Aient CLI release.
