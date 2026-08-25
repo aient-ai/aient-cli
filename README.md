@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.0` for macOS and Linux on Intel and
+The current release is `0.11.3` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -68,17 +68,17 @@ an APFS device-number change across a remount while directory replacement still
 fails closed. If a legacy definition predates that evidence, a healthy host
 profile can replace it with `--store-in-project` without another login.
 
-Release 0.11.0 lets a customer reconnect to an existing Agent Thread from the
+Release 0.11.3 lets a customer reconnect to an existing Agent Thread from the
 terminal. Read durable status and events, send or cooperatively steer a message,
 answer an Agent input request, cancel explicitly, or open the interactive chat.
 Inside chat, `! COMMAND` runs a supervised command in the Agent's reported
 sandbox and returns an execution ID that can be observed or cancelled after a
 disconnect.
 
-The standard `aient-agent` catalog uses strict V3 workspace activation. The
-retained `aient-pr-e2e` template remains V2 as the matched compatibility
-control. The server negotiates capabilities per template; the CLI does not
-infer one global workspace layout version.
+The standard `aient-agent` and retained `aient-pr-e2e` catalogs currently use
+the V2 workspace writer. The server keeps the closed V2 and V3 readers and
+negotiates capabilities per template; the CLI does not infer one global
+workspace layout version.
 
 Linux managed renewal remains preview pending a real systemd-user and D-Bus
 Secret Service renewal, restart, and logout canary. Use
@@ -95,7 +95,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.0
+VERSION=0.11.3
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -193,24 +193,54 @@ not create nested CLI sandboxes.
 ## Verify SLSA provenance
 
 For the full build-provenance check, also download `multiple.intoto.jsonl` and
-run:
+use a current [GitHub CLI](https://cli.github.com/) to verify the Sigstore
+signature, Rekor entry, exact workflow certificate, artifact digest, and source
+identity. The source digest below is the peeled private tag commit for 0.11.3:
 
 ```sh
 curl -fsSL "${BASE}/multiple.intoto.jsonl" \
   -o "${RELEASE_DIR}/multiple.intoto.jsonl"
 cd "${RELEASE_DIR}"
-slsa-verifier verify-artifact "${ARCHIVE}" \
-  --provenance-path multiple.intoto.jsonl \
-  --source-uri github.com/haf/glimt \
-  --source-tag "${TAG}" \
-  --builder-id \
-    "https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1"
+SOURCE_DIGEST="b70bd1e2f3caa673f7203b4eb4ad30ba1bf95a37"
+SIGNER_DIGEST="cdab76e75fef610b59a7f528a6dba359e624d6af"
+gh attestation verify "${ARCHIVE}" \
+  --bundle multiple.intoto.jsonl \
+  --repo haf/glimt \
+  --predicate-type https://slsa.dev/provenance/v0.2 \
+  --cert-identity \
+    "https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1" \
+  --cert-oidc-issuer https://token.actions.githubusercontent.com \
+  --source-ref "refs/tags/${TAG}" \
+  --source-digest "${SOURCE_DIGEST}" \
+  --signer-digest "${SIGNER_DIGEST}" \
+  --format json > provenance-verification.json
+
+jq -e --arg source "git+https://github.com/haf/glimt@refs/tags/${TAG}" \
+  --arg sha "${SOURCE_DIGEST}" '
+    length == 1 and
+    .[0].verificationResult.statement._type ==
+      "https://in-toto.io/Statement/v0.1" and
+    .[0].verificationResult.statement.predicateType ==
+      "https://slsa.dev/provenance/v0.2" and
+    (.[0].verificationResult.statement.subject | length) == 18 and
+    .[0].verificationResult.statement.predicate.builder.id ==
+      "https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1" and
+    .[0].verificationResult.statement.predicate.buildType ==
+      "https://github.com/slsa-framework/slsa-github-generator/generic@v1" and
+    .[0].verificationResult.statement.predicate.invocation.configSource == {
+      uri: $source,
+      digest: {sha1: $sha},
+      entryPoint: ".github/workflows/aient-cli-release.yml"
+    }
+  ' provenance-verification.json > /dev/null
 ```
 
 The verified source is `haf/glimt` and the provenance builder is the immutable
 repository-owned `aient-cli-provenance.yml@v1.0.1` workflow, while this public
 repository is only the byte-for-byte release host. That distinction is
-intentional; see [Security](SECURITY.md).
+intentional. `gh attestation verify` performs the cryptographic and identity
+verification; the final exact predicate check is not a replacement for it. See
+[Security](SECURITY.md).
 
 ## Start a customer session
 
