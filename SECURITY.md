@@ -38,8 +38,8 @@ cdab76e75fef610b59a7f528a6dba359e624d6af
 
 Use a current GitHub CLI's `gh attestation verify` with the release bundle. Pin
 the exact certificate identity, OIDC issuer, signer digest, source tag, and
-peeled source commit; for 0.11.3 that source commit is
-`b70bd1e2f3caa673f7203b4eb4ad30ba1bf95a37`. The verifier owns the Sigstore
+peeled source commit; for 0.11.4 that source commit is
+`b6c4e72783f88295d2ce746100d315a305821edb`. The verifier owns the Sigstore
 signature, Rekor inclusion, certificate, artifact digest, and source checks.
 The mirror additionally requires the verified statement to be in-toto v0.1
 with SLSA provenance v0.2, exactly 18 release subjects, the exact builder and

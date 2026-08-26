@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.3` for macOS and Linux on Intel and
+The current release is `0.11.4` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -68,12 +68,35 @@ an APFS device-number change across a remount while directory replacement still
 fails closed. If a legacy definition predates that evidence, a healthy host
 profile can replace it with `--store-in-project` without another login.
 
-Release 0.11.3 lets a customer reconnect to an existing Agent Thread from the
-terminal. Read durable status and events, send or cooperatively steer a message,
-answer an Agent input request, cancel explicitly, or open the interactive chat.
-Inside chat, `! COMMAND` runs a supervised command in the Agent's reported
-sandbox and returns an execution ID that can be observed or cancelled after a
-disconnect.
+Release 0.11.4 lets a customer find reconnectable Agent Threads before using
+the existing status, events, messaging, interaction, cancellation, chat, and
+execution surfaces:
+
+```sh
+PROFILE=aient
+aient --profile "$PROFILE" agent list --search QUERY --status active --limit 20
+aient --profile "$PROFILE" agent list --include-archived --cursor CURSOR --json
+```
+
+An exact Thread ID or title query can be combined with status, archive, page
+size, and cursor filters. Human pagination prints a continuation command that
+preserves the active filters; `--json` emits one versioned page.
+
+Retained workspace-operation storage under `~/.aient/workspace-operations` is
+also bounded. Inspect it locally, without authentication or network access:
+
+```sh
+aient sandbox workspace list [--json]
+aient sandbox workspace resume OPERATION
+aient sandbox workspace discard OPERATION
+```
+
+New whole-bundle publication is limited to an aggregate 10 GiB and must leave
+at least 1 GiB of filesystem space after copying. There is no count limit, no
+configuration override, and the CLI does not evict retained operations
+automatically. Existing receipts remain available for explicit recovery. This
+does not change broad non-Git selection or temporary staging; keep using precise
+`--include` and `--exclude` rules for selected local content.
 
 The standard `aient-agent` and retained `aient-pr-e2e` catalogs currently use
 the V2 workspace writer. The server keeps the closed V2 and V3 readers and
@@ -95,7 +118,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.3
+VERSION=0.11.4
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -195,13 +218,13 @@ not create nested CLI sandboxes.
 For the full build-provenance check, also download `multiple.intoto.jsonl` and
 use a current [GitHub CLI](https://cli.github.com/) to verify the Sigstore
 signature, Rekor entry, exact workflow certificate, artifact digest, and source
-identity. The source digest below is the peeled private tag commit for 0.11.3:
+identity. The source digest below is the peeled private tag commit for 0.11.4:
 
 ```sh
 curl -fsSL "${BASE}/multiple.intoto.jsonl" \
   -o "${RELEASE_DIR}/multiple.intoto.jsonl"
 cd "${RELEASE_DIR}"
-SOURCE_DIGEST="b70bd1e2f3caa673f7203b4eb4ad30ba1bf95a37"
+SOURCE_DIGEST="b6c4e72783f88295d2ce746100d315a305821edb"
 SIGNER_DIGEST="cdab76e75fef610b59a7f528a6dba359e624d6af"
 gh attestation verify "${ARCHIVE}" \
   --bundle multiple.intoto.jsonl \
@@ -253,6 +276,7 @@ sandbox-scoped and intentionally does not grant Agent conversation authority.
 PROFILE=aient
 aient auth login --profile "$PROFILE"
 aient --profile "$PROFILE" auth status
+aient --profile "$PROFILE" agent list --search QUERY --status active --limit 20
 aient --profile "$PROFILE" agent status THREAD [--json]
 aient --profile "$PROFILE" agent events THREAD [--follow] [--json]
 aient --profile "$PROFILE" agent message THREAD MESSAGE... [--operation-id UUID] [--immediate] [--json]
@@ -297,9 +321,8 @@ command. Reconnect by passing the exact `EXECUTION` identifier to the execution
 commands above. Ctrl-C in ordinary chat detaches without cancelling Agent work; Ctrl-C in an active
 remote-command view explicitly requests cancellation of that exact execution.
 
-This release requires an existing `THREAD`; it does not start a new Agent
-Thread and does not yet list or search Agent Threads. Copy the Thread ID from
-the Aient Thread URL or another authoritative Aient surface. The
+This release does not start a new Agent Thread. Use `agent list` to find a
+reconnectable Thread ID, or copy it from another authoritative Aient surface. The
 `--immediate` requires one explicit stable operation UUID for one logical
 message; an ordinary `agent message` may omit it and let the CLI generate one.
 Reuse an explicit UUID only for an exact retry. `--immediate` asks the active task
