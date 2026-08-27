@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.4` for macOS and Linux on Intel and
+The current release is `0.11.5` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -68,9 +68,8 @@ an APFS device-number change across a remount while directory replacement still
 fails closed. If a legacy definition predates that evidence, a healthy host
 profile can replace it with `--store-in-project` without another login.
 
-Release 0.11.4 lets a customer find reconnectable Agent Threads before using
-the existing status, events, messaging, interaction, cancellation, chat, and
-execution surfaces:
+Release 0.11.5 retains Agent Thread discovery plus the existing status, events,
+messaging, interaction, cancellation, chat, and execution surfaces:
 
 ```sh
 PROFILE=aient
@@ -98,6 +97,31 @@ automatically. Existing receipts remain available for explicit recovery. This
 does not change broad non-Git selection or temporary staging; keep using precise
 `--include` and `--exclude` rules for selected local content.
 
+Every customer-development create advertises
+`developmentSizeBindingVersion: v2`. A compatible product response binds the
+complete `aientSizeBinding=v2` class, source, and envelope before the
+control-plane request. Partial, crossed, or mismatched bindings fail closed;
+legacy explicit V1 and an old server's unbound environment default remain
+rollout-only compatibility paths.
+
+Use `aient sandbox run --timing-json` to emit one content-free JSON line on
+stderr without changing command output or exit status. It records proven
+workspace activation, first output, terminal status, downloads, and confirmed
+cleanup or retention. A failed lease restore remains the primary error and
+reports `retained=true` with `cleanupConfirmed=false`.
+
+Disposable cleanup issues exactly one DELETE with the full configured
+`--timeout`, followed by a fresh equally bounded GET-only absence check. The
+CLI does not retry DELETE or infer success from ambiguous deletion. Stopping a
+lease heartbeat is quiet; genuine lease-refresh failures continue to warn and
+retry while the operation remains active.
+
+Selected submodules can activate with declared parent-repository extras. The
+server verifies every declared path and the atomic root exchange before publish.
+Capability preflight also recognizes the exact old helper generation mounted by
+an already-running sandbox, preserving retained-operation recovery during a
+mixed-version rollout.
+
 The standard `aient-agent` and retained `aient-pr-e2e` catalogs currently use
 the V2 workspace writer. The server keeps the closed V2 and V3 readers and
 negotiates capabilities per template; the CLI does not infer one global
@@ -118,7 +142,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.4
+VERSION=0.11.5
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -218,13 +242,13 @@ not create nested CLI sandboxes.
 For the full build-provenance check, also download `multiple.intoto.jsonl` and
 use a current [GitHub CLI](https://cli.github.com/) to verify the Sigstore
 signature, Rekor entry, exact workflow certificate, artifact digest, and source
-identity. The source digest below is the peeled private tag commit for 0.11.4:
+identity. The source digest below is the peeled private tag commit for 0.11.5:
 
 ```sh
 curl -fsSL "${BASE}/multiple.intoto.jsonl" \
   -o "${RELEASE_DIR}/multiple.intoto.jsonl"
 cd "${RELEASE_DIR}"
-SOURCE_DIGEST="b6c4e72783f88295d2ce746100d315a305821edb"
+SOURCE_DIGEST="2eb7ae09be5adf0105ff2865f90c902cbce14dac"
 SIGNER_DIGEST="cdab76e75fef610b59a7f528a6dba359e624d6af"
 gh attestation verify "${ARCHIVE}" \
   --bundle multiple.intoto.jsonl \
