@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.5` for macOS and Linux on Intel and
+The current release is `0.11.6` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -68,7 +68,7 @@ an APFS device-number change across a remount while directory replacement still
 fails closed. If a legacy definition predates that evidence, a healthy host
 profile can replace it with `--store-in-project` without another login.
 
-Release 0.11.5 retains Agent Thread discovery plus the existing status, events,
+Release 0.11.6 retains Agent Thread discovery plus the existing status, events,
 messaging, interaction, cancellation, chat, and execution surfaces:
 
 ```sh
@@ -97,6 +97,11 @@ automatically. Existing receipts remain available for explicit recovery. This
 does not change broad non-Git selection or temporary staging; keep using precise
 `--include` and `--exclude` rules for selected local content.
 
+Automatic cross-process preparation matching lets a repeated ordinary sync or
+workspace-backed run resume the exact retained operation when its source
+generations and authenticated authority still match. Unsupported development
+targets announce the explicit workspace-resume fallback before capture.
+
 Every customer-development create advertises
 `developmentSizeBindingVersion: v2`. A compatible product response binds the
 complete `aientSizeBinding=v2` class, source, and envelope before the
@@ -122,10 +127,10 @@ Capability preflight also recognizes the exact old helper generation mounted by
 an already-running sandbox, preserving retained-operation recovery during a
 mixed-version rollout.
 
-The standard `aient-agent` and retained `aient-pr-e2e` catalogs currently use
-the V2 workspace writer. The server keeps the closed V2 and V3 readers and
-negotiates capabilities per template; the CLI does not infer one global
-workspace layout version.
+The standard `aient-agent` catalog uses the V3 workspace writer. The retained
+`aient-pr-e2e` catalog remains the V2 rollback control. The server keeps the
+closed V2 and V3 readers and negotiates capabilities per template; the CLI does
+not infer one global workspace layout version.
 
 Linux managed renewal remains preview pending a real systemd-user and D-Bus
 Secret Service renewal, restart, and logout canary. Use
@@ -142,7 +147,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.5
+VERSION=0.11.6
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -360,21 +365,18 @@ The current release supports repository-independent and verified-repository
 development, including brokered environment/GitHub capabilities for
 `sandbox run` and retained `sandbox exec`. It may infer a repository selector
 from local Git remotes, but the server verifies authority; a configured remote
-never grants access. Retained
-`sandbox exec` prints an execution UUID, streams live output, and can reconcile
-transport loss through `sandbox execution attach|status|wait|cancel` without
-replaying the command. Use one active terminal per execution: a second live
-attachment supersedes the first, and output received by either attachment is
-not replayed to the other. Use `sandbox exec --detach` for an existing retained
-sandbox, or `sandbox run --detach --keep` for a newly composed run. The CLI
-prints one stable execution ID after detached ownership is accepted; later
-status, attach, wait, or cancel calls observe that same execution without
-redispatch. Foreground `sandbox run` is also supervised and streams stdout and
-stderr live. Foreground execution remains connection-bound: after transport
-loss it must be reattached within the short server-owned reconnect grace or the
-service cancels it. Use `--detach` when command survival must not depend on a
-client attachment. Each `sandbox shell` still opens a fresh non-resumable PTY without
-brokered environment/GitHub capabilities.
+never grants access. Retained `sandbox exec` and composed `sandbox run` each
+allocate one fresh execution for the current process. Recovery inside that
+process reuses the exact execution ID and never redispatches the command;
+running the same command in another process starts another execution. `--json`
+emits an `execution_started` event with `executionId` and `outputCursor` before
+any command output. A foreground reconnect resumes from its last accepted cursor;
+`sandbox execution attach SANDBOX EXECUTION --after-cursor CURSOR`
+replays retained output before following it live. Cursor acceptance occurs only
+after a whole frame is presented, so recovery may repeat one frame but cannot
+create an output gap. Use `--detach` when the initiating process should return
+after detached ownership is accepted. Each `sandbox shell` still opens a fresh
+non-resumable PTY without brokered environment/GitHub capabilities.
 
 Inspect or update explicit runtime-service repository mappings with
 `aient services list`, `services paths`, `services classify`, and
