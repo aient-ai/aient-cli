@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.6` for macOS and Linux on Intel and
+The current release is `0.11.10` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -63,12 +63,17 @@ for the nearest project; use
 `aient --profile NAME auth export --store-in-project` to repair or reconcile an
 existing managed installation.
 
+Release 0.11.10 renews managed project access after laptop sleep using expired
+envelope metadata only as renewal input, never as request authority. OAuth login
+preselects the project-linked organisation while retaining membership and
+consent validation.
+
 On macOS, the protected directory birth time lets the same installation survive
 an APFS device-number change across a remount while directory replacement still
 fails closed. If a legacy definition predates that evidence, a healthy host
 profile can replace it with `--store-in-project` without another login.
 
-Release 0.11.6 retains Agent Thread discovery plus the existing status, events,
+Release 0.11.10 retains Agent Thread discovery plus the existing status, events,
 messaging, interaction, cancellation, chat, and execution surfaces:
 
 ```sh
@@ -102,6 +107,44 @@ workspace-backed run resume the exact retained operation when its source
 generations and authenticated authority still match. Unsupported development
 targets announce the explicit workspace-resume fallback before capture.
 
+When cache admission becomes available after a rollout delay, the CLI
+reconciles and retries only the exact retained seed intent. If capability
+unavailability persists, rerun the original command unchanged. When the
+captured source generations and authenticated authority still match,
+preparation matching resumes the same retained operation rather than
+recapturing the workspace. Root and selected repositories use one
+rollout-compatible Git object-pack representation, while older
+selected-repository receipts remain readable. Committed-history reuse for a
+selected repository requires it to be independently server-authorized;
+parent-repository access never grants child history. Without that authority,
+the selected layer uses an operation-scoped direct transfer.
+
+Dependency installation can retain the sandbox-owned pnpm store without
+invalidating later V3 execution or synchronization. Filesystem and mount
+containment remain fail-closed.
+
+Ordinary cache-backed V3 runs reuse the nearest verified Git ancestor. An
+adjacent commit uploads only its Git object delta; same-HEAD reuse uploads no
+committed Git objects. After materialization succeeds, the CLI activates that
+finalized candidate directly instead of requiring the expired cache read grant
+for a second assembly.
+
+Release 0.11.10 also adds a conditional one-use `repository-prewarm` path for
+an exact-clean same-HEAD workspace at the default repository root. When a
+matching Ready member exists, ordinary `sandbox run` sends zero committed Git
+bytes and skips sandbox creation, MinIO reads, and workspace materialization.
+A typed no-ready result continues the same immutable capture through the cold
+path; an ambiguous claim stops without duplicate work. Dirty overlays, selected
+repositories, custom roots, explicit names, and other ineligible requests use
+the existing cache or direct path. Ready-member supply is operator-bounded and
+is not promised for every command.
+
+Immutable capture overlaps remote preflight, while an exact retained operation
+keeps precedence. A stale derived commit-graph that references only pruned
+unreachable objects does not block capture: refs and reachable objects remain
+authoritative, the CLI does not rewrite user Git metadata, and a genuinely
+missing reachable object still fails before upload.
+
 Every customer-development create advertises
 `developmentSizeBindingVersion: v2`. A compatible product response binds the
 complete `aientSizeBinding=v2` class, source, and envelope before the
@@ -110,9 +153,12 @@ legacy explicit V1 and an old server's unbound environment default remain
 rollout-only compatibility paths.
 
 Use `aient sandbox run --timing-json` to emit one content-free JSON line on
-stderr without changing command output or exit status. It records proven
-workspace activation, first output, terminal status, downloads, and confirmed
-cleanup or retention. A failed lease restore remains the primary error and
+stderr without changing command output or exit status. For cache-backed V3
+materialization on the current phase-evidence helper, its optional
+candidate-phase section records candidate durability separately from activation;
+the section is absent when that evidence is unavailable. The receipt also
+records proven workspace activation, first output, terminal status, downloads,
+and confirmed cleanup or retention. A failed lease restore remains the primary error and
 reports `retained=true` with `cleanupConfirmed=false`.
 
 Disposable cleanup issues exactly one DELETE with the full configured
@@ -147,7 +193,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.6
+VERSION=0.11.10
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -247,29 +293,52 @@ not create nested CLI sandboxes.
 For the full build-provenance check, also download `multiple.intoto.jsonl` and
 use a current [GitHub CLI](https://cli.github.com/) to verify the Sigstore
 signature, Rekor entry, exact workflow certificate, artifact digest, and source
-identity. The source digest below is the peeled private tag commit for 0.11.5:
+identity. The first verification authenticates the exact source commit in the
+workflow certificate. The second verification pins that certificate digest
+explicitly, avoiding a self-referential release-commit SHA in these instructions:
 
 ```sh
 curl -fsSL "${BASE}/multiple.intoto.jsonl" \
   -o "${RELEASE_DIR}/multiple.intoto.jsonl"
 cd "${RELEASE_DIR}"
-SOURCE_DIGEST="2eb7ae09be5adf0105ff2865f90c902cbce14dac"
 SIGNER_DIGEST="cdab76e75fef610b59a7f528a6dba359e624d6af"
-gh attestation verify "${ARCHIVE}" \
-  --bundle multiple.intoto.jsonl \
-  --repo haf/glimt \
-  --predicate-type https://slsa.dev/provenance/v0.2 \
-  --cert-identity \
-    "https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1" \
-  --cert-oidc-issuer https://token.actions.githubusercontent.com \
-  --source-ref "refs/tags/${TAG}" \
-  --source-digest "${SOURCE_DIGEST}" \
-  --signer-digest "${SIGNER_DIGEST}" \
-  --format json > provenance-verification.json
+verify_provenance() {
+  gh attestation verify "${ARCHIVE}" \
+    --bundle multiple.intoto.jsonl \
+    --repo haf/glimt \
+    --predicate-type https://slsa.dev/provenance/v0.2 \
+    --cert-identity \
+      "https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1" \
+    --cert-oidc-issuer https://token.actions.githubusercontent.com \
+    --source-ref "refs/tags/${TAG}" \
+    --signer-digest "${SIGNER_DIGEST}" \
+    "$@" \
+    --format json
+}
+verify_provenance > provenance-verification.json
+
+SOURCE_DIGEST="$(
+  jq -er '
+    if type != "array" or length != 1 then
+      error("expected exactly one verified provenance result")
+    else
+      .[0].verificationResult.signature.certificate.sourceRepositoryDigest as $digest
+      | if ($digest | type) != "string" or
+          (($digest | test("^[0-9a-f]{40}$")) | not)
+        then error("verified certificate has no exact source repository digest")
+        else $digest
+        end
+    end
+  ' provenance-verification.json
+)"
+
+verify_provenance --source-digest "${SOURCE_DIGEST}" > \
+  provenance-verification-pinned.json
 
 jq -e --arg source "git+https://github.com/haf/glimt@refs/tags/${TAG}" \
   --arg sha "${SOURCE_DIGEST}" '
     length == 1 and
+    .[0].verificationResult.signature.certificate.sourceRepositoryDigest == $sha and
     .[0].verificationResult.statement._type ==
       "https://in-toto.io/Statement/v0.1" and
     .[0].verificationResult.statement.predicateType ==
@@ -283,8 +352,12 @@ jq -e --arg source "git+https://github.com/haf/glimt@refs/tags/${TAG}" \
       uri: $source,
       digest: {sha1: $sha},
       entryPoint: ".github/workflows/aient-cli-release.yml"
-    }
-  ' provenance-verification.json > /dev/null
+    } and
+    .[0].verificationResult.statement.predicate.materials == [{
+      uri: $source,
+      digest: {sha1: $sha}
+    }]
+  ' provenance-verification-pinned.json > /dev/null
 ```
 
 The verified source is `haf/glimt` and the provenance builder is the immutable
@@ -316,6 +389,7 @@ aient --profile "$PROFILE" agent execution status EXECUTION [--json]
 aient --profile "$PROFILE" agent execution attach EXECUTION
 aient --profile "$PROFILE" agent execution wait EXECUTION [--json]
 aient --profile "$PROFILE" agent execution cancel EXECUTION [--json]
+aient --profile "$PROFILE" environment list
 aient sandbox run --environment development --size medium -- go test ./...
 
 aient sandbox run --environment development --repository owner/repository \
@@ -350,6 +424,14 @@ command. Reconnect by passing the exact `EXECUTION` identifier to the execution
 commands above. Ctrl-C in ordinary chat detaches without cancelling Agent work; Ctrl-C in an active
 remote-command view explicitly requests cancellation of that exact execution.
 
+In a repository-bound Aient project, sandbox commands may omit
+`--environment`. The product chooses the organisation's development default
+and reports whether it came from that explicit pointer or the operational
+default compatibility fallback. An explicit `--environment` always wins.
+Use `aient environment list [--json]` to inspect available IDs and slugs, CLI
+enablement, and both default roles without exposing secrets or sandbox resource
+configuration.
+
 This release does not start a new Agent Thread. Use `agent list` to find a
 reconnectable Thread ID, or copy it from another authoritative Aient surface. The
 `--immediate` requires one explicit stable operation UUID for one logical
@@ -368,9 +450,12 @@ from local Git remotes, but the server verifies authority; a configured remote
 never grants access. Retained `sandbox exec` and composed `sandbox run` each
 allocate one fresh execution for the current process. Recovery inside that
 process reuses the exact execution ID and never redispatches the command;
-running the same command in another process starts another execution. `--json`
-emits an `execution_started` event with `executionId` and `outputCursor` before
-any command output. A foreground reconnect resumes from its last accepted cursor;
+running the same command in another process starts another execution. Before
+the admission request, `--json` emits an `execution_started` event with
+`executionId` and `outputCursor`. This is a pre-dispatch admission-attempt
+identity for reconnect, not proof that the command was admitted or started;
+the validated server admission frame remains authoritative.
+A foreground reconnect resumes from its last accepted cursor;
 `sandbox execution attach SANDBOX EXECUTION --after-cursor CURSOR`
 replays retained output before following it live. Cursor acceptance occurs only
 after a whole frame is presented, so recovery may repeat one frame but cannot
