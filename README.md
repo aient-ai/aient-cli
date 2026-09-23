@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.14` for macOS and Linux on Intel and
+The current release is `0.11.15` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -63,7 +63,7 @@ for the nearest project; use
 `aient --profile NAME auth export --store-in-project` to repair or reconcile an
 existing managed installation.
 
-Release 0.11.10 renews managed project access after laptop sleep using expired
+Managed project access renews after laptop sleep using expired
 envelope metadata only as renewal input, never as request authority. OAuth login
 preselects the project-linked organisation while retaining membership and
 consent validation.
@@ -73,7 +73,7 @@ an APFS device-number change across a remount while directory replacement still
 fails closed. If a legacy definition predates that evidence, a healthy host
 profile can replace it with `--store-in-project` without another login.
 
-Release 0.11.10 retains Agent Thread discovery plus the existing status, events,
+Release 0.11.11 retains Agent Thread discovery plus the existing status, events,
 messaging, interaction, cancellation, chat, and execution surfaces:
 
 ```sh
@@ -129,7 +129,7 @@ committed Git objects. After materialization succeeds, the CLI activates that
 finalized candidate directly instead of requiring the expired cache read grant
 for a second assembly.
 
-Release 0.11.10 also adds a conditional one-use `repository-prewarm` path for
+A conditional one-use `repository-prewarm` path is available for
 an exact-clean same-HEAD workspace at the default repository root. When a
 matching Ready member exists, ordinary `sandbox run` sends zero committed Git
 bytes and skips sandbox creation, MinIO reads, and workspace materialization.
@@ -160,6 +160,14 @@ the section is absent when that evidence is unavailable. The receipt also
 records proven workspace activation, first output, terminal status, downloads,
 and confirmed cleanup or retention. A failed lease restore remains the primary error and
 reports `retained=true` with `cleanupConfirmed=false`.
+
+Use `aient sandbox sync --timing-json` to measure the retained edit loop without
+changing sync behavior. Its content-free receipt separates local inspection,
+capability and remote-base probes, Git construction, retained publication,
+upload bytes, finalization, activation, receipt cleanup, and unaccounted time.
+The timing option adds no control-plane request. Detailed transport phases are
+populated by retained V3 sync; unavailable phases remain incomplete on older
+layouts.
 
 Disposable cleanup issues exactly one DELETE with the full configured
 `--timeout`, followed by a fresh equally bounded GET-only absence check. The
@@ -193,7 +201,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.14
+VERSION=0.11.15
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -401,12 +409,23 @@ aient --timeout 15m sandbox exec retained-sandbox \
   --environment development --repository owner/repository \
   --workdir /workspace/repo \
   -- go test ./...
+# After your next local edit, synchronize and execute in the same sandbox:
+aient sandbox exec retained-sandbox --workspace . \
+  --environment development --repository owner/repository \
+  -- go test ./...
 aient sandbox logs retained-sandbox \
   --environment development --repository owner/repository
 aient sandbox delete retained-sandbox \
   --environment development --repository owner/repository
 aient --profile "$PROFILE" auth logout
 ```
+
+`exec --workspace PATH` accepts ordinary sync source flags and runs in the
+synchronized directory unless `--workdir` is explicit. A failed sync never starts the command;
+`sandbox workspace resume` resumes publication only, never execution. The sandbox keeps its
+existing owner and retention policy; sync may renew its lease. This command neither creates nor
+releases it. `--detach` waits for sync and execution acceptance. For this combined command,
+`--timing-json` reports synchronization only, not command execution or output latency.
 
 `auth login` opens the Aient consent flow in your browser. An administrator
 must first enable customer CLI development on the selected environment. The
@@ -423,6 +442,14 @@ environment or local repository inference, and sends no Agent message for the
 command. Reconnect by passing the exact `EXECUTION` identifier to the execution
 commands above. Ctrl-C in ordinary chat detaches without cancelling Agent work; Ctrl-C in an active
 remote-command view explicitly requests cancellation of that exact execution.
+
+If terminal `agent execution status`, `wait`, or `cancel` cannot write its
+output, the local recovery selector remains available. Run `agent execution
+status EXECUTION` to reauthorize and observe the same execution, without
+starting another command or repeating cancellation. Successfully delivered
+terminal output still retires that selector. `wait` preserves a nonzero exit
+outcome even if local receipt retirement fails. This is recoverable output
+delivery, not permanent execution history.
 
 In a repository-bound Aient project, sandbox commands may omit
 `--environment`. The product chooses the organisation's development default
