@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.16` for macOS and Linux on Intel and
+The current release is `0.11.19` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -201,7 +201,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.16
+VERSION=0.11.19
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -435,7 +435,7 @@ cancellation, and interactive mutations require `aient.agent.write`.
 --json` emits JSONL that can resume from a durable sequence.
 
 `agent chat` attaches to the same public API lifecycle. Enter `! COMMAND` to
-run a supervised shell command under `/workspace/repo` in the environment and
+run a supervised shell command in the exact Agent worktree, environment, and
 sandbox frozen from the latest rendered Agent status. The CLI shows those IDs
 and its preallocated execution UUID before output, sends no workstation process
 environment or local repository inference, and sends no Agent message for the
