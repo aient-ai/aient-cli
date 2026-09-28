@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.19` for macOS and Linux on Intel and
+The current release is `0.11.20` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -23,6 +23,12 @@ Named sandbox creation is replay-safe. The CLI binds one public sandbox name
 to one idempotency identity, retries only that same identity across bounded
 transport ambiguity, and refuses to execute in or delete a sandbox when the
 create response cannot be trusted as the requested name.
+
+When an ordinary customer `sandbox create` receives a definitive native capacity
+denial, the CLI tries Modal using the same requested name, as `sandbox run`
+already does. It prints the allocation ID and exact recovery command. Explicit
+native selection does not fall back; other failures retain their original result. Billing-action
+and inactive-account denials are definitive failures, not ambiguous creates.
 
 Organisation selection is UUID-bound and human-readable. The CLI resolves the
 authenticated display name from Aient and shows it beside the canonical
@@ -201,7 +207,7 @@ opt into that preview.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.19
+VERSION=0.11.20
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
