@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.22` for macOS and Linux on Intel and
+The current release is `0.11.23` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -202,12 +202,54 @@ opt into that preview.
 > They are not Aient CLI source, are not listed in `checksums.txt`, and are not
 > verified release artifacts.
 
+## Experimental selected-file live sync
+
+Publish explicitly selected existing local regular files into an already running
+native V3 sandbox, then watch ordinary atomic editor saves:
+
+```sh
+aient sandbox sync SANDBOX /absolute/local/repository \
+  --environment development --repository owner/repository \
+  --live-stream --remote-dir /workspace/repo/actual-worktree \
+  --live-path src/example.ts
+```
+
+Repeat `--live-path` for 1–128 exact repository-relative files, at most 32 MiB each.
+Initial publication overwrites those files; choose the exact remote worktree and
+files whose overwrite is intended. Existing remote parent directories, an
+attested native V3 workspace and normal customer shell permission are required.
+The ordinary tracked Git and non-Git include/exclude policy applies; control
+paths, credentials, symlink sources and submodules are rejected. Identical
+captured content is skipped. Each file replaces atomically, and its exact
+sequence, byte count and SHA-256 acknowledgement proves individual delivery.
+
+The stream holds a shared workspace fence, blocking full sync and exclusive files
+API writes. Ctrl-C requests helper STOP and waits for terminal completion. Missing
+proof prints `termination UNVERIFIED` with the session and observed PID: the helper
+and fence may remain active and keep blocking those writes. The PID is diagnostic
+metadata, not kill authority. Starting another watcher does not recover an
+unverified session. The sandbox keeps its existing lifecycle and finite lease.
+
+The separate experimental `--live` mode uses the files API with normal files
+permission and an attested existing workspace, checking its binding per save
+batch. Choose either `--live` or `--live-stream`, with explicit `--remote-dir` and
+`--live-path`; reset/preserve directories, submodule flags and `--timing-json` are
+unsupported in these modes.
+
+Neither mode activates a coherent snapshot, synchronizes Git metadata or restarts
+the application. Deletion/rename propagation, new unselected files, mode changes,
+concurrent-edit protection, multi-file consistency, overflow/reconnect recovery
+and submodules are unsupported. Errors stop the watcher; restarting overwrites
+the selected files again. Diagnostics separate setup and file delivery. Delivery
+does not prove application readiness or browser HMR, and there is no universal
+subsecond latency guarantee.
+
 ## Install on macOS or Linux
 
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.22
+VERSION=0.11.23
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
