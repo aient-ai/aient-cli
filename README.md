@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.26` for macOS and Linux on Intel and
+The current release is `0.11.27` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -281,7 +281,7 @@ Existing finite sandbox leases and hard expiry apply.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.26
+VERSION=0.11.27
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -530,6 +530,33 @@ environment or local repository inference, and sends no Agent message for the
 command. Reconnect by passing the exact `EXECUTION` identifier to the execution
 commands above. Ctrl-C in ordinary chat detaches without cancelling Agent work; Ctrl-C in an active
 remote-command view explicitly requests cancellation of that exact execution.
+
+### Sync selected files into an Agent checkout
+
+```sh
+aient --profile "$PROFILE" agent worktree sync THREAD /absolute/local/repository \
+  --repository OWNER/REPO --path apps/frontend/src/App.tsx --json
+```
+
+Repeat `--path` for 1–128 existing regular files, each at most 64 KiB. The command
+writes to the Agent's current primary Modal checkout; native runtimes and another
+repository are rejected. Selected source follows the Git/extras policy; use
+`--include` to explicitly allow an ignored source. Git control files, `.aient`,
+active credentials, symlink sources and submodules are rejected.
+
+Each file is replaced atomically, preserving its destination mode. Remote parents
+and single-link regular destinations must already exist. Whole-file updates use
+last completed write wins; the model's existing line-hash edit checks still apply.
+This one-shot command preserves Agent ownership and the existing runtime lease.
+It does not synchronize Git metadata or continuously watch local saves.
+
+JSON separates confirmed `writes` from `notification`. Exact path, byte count,
+SHA-256 acknowledgement and successful command completion confirm each write.
+After the batch succeeds, a cooperative path-change message asks the Agent to
+reread the files. Delivery does not prove a model read or application reload.
+Failed or ambiguous writes send no success notice; earlier confirmed writes
+remain applied. If only notification fails, retry `agent message` with the
+returned exact text, operation ID and `--immediate`; do not repeat the writes.
 
 If terminal `agent execution status`, `wait`, or `cancel` cannot write its
 output, the local recovery selector remains available. Run `agent execution
