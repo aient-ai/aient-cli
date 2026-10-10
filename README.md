@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.24` for macOS and Linux on Intel and
+The current release is `0.11.26` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -204,52 +204,84 @@ opt into that preview.
 
 ## Experimental selected-file live sync
 
-Publish explicitly selected existing local regular files into an already running
-native V3 sandbox, then watch ordinary atomic editor saves:
+Select existing local regular source files
+in an already running sandbox, publish them once, then watch ordinary local saves.
+Pass the actual remote worktree explicitly:
 
 ```sh
 aient sandbox sync SANDBOX /absolute/local/repository \
   --environment development --repository owner/repository \
   --live-stream --remote-dir /workspace/repo/actual-worktree \
+  --live-path apps/aient-app/src/app/example/page.tsx
+```
+
+Repeat `--live-path` for 1–128 exact repository-relative files, each at most 32 MiB.
+The initial upload overwrites those selected files: choose files whose overwrite
+is intended. The ordinary tracked Git and non-Git include/exclude policy applies;
+Git control paths, credentials, symlink sources and submodules are rejected.
+Parent directory watches support ordinary editor atomic saves; identical captured
+content is skipped. The sandbox keeps running when the watcher ends.
+
+`--live-stream` requires a compatible attested native V3 workspace, existing
+remote parent directories and normal customer shell permission. It sends captured
+bytes over one authenticated terminal WebSocket. Each file replaces atomically;
+the exact sequence, byte count and SHA-256 acknowledgement proves individual file
+delivery. Setup and helper READY are measured separately from per-file delivery.
+The session holds a shared workspace fence, blocking ordinary full sync and
+exclusive files API writes. Ctrl-C requests helper STOP and waits for terminal
+command completion. Missing proof prints `termination UNVERIFIED`: the helper and
+fence may remain active and keep blocking those writes. The reported session/PID
+is diagnostic metadata, not authority to kill a process. Restarting a watcher
+does not recover an unverified session and overwrites the selected files again.
+
+Use the separate experimental `--live` mode instead of `--live-stream` to upload
+selected files through the files API. It requires an attested existing workspace
+and normal files permission, and reads the workspace binding for each save batch.
+Its diagnostics distinguish binding reads and upload duration. The files transport
+remains the default. A long-running Modal app holds a shared workspace fence,
+which can block those exclusive binding reads and uploads.
+
+For an original-bound ordinary customer Modal workspace, explicitly opt into
+finite supervised execution for each selected file:
+
+```sh
+aient sandbox sync SANDBOX /absolute/local/repository \
+  --live --live-transport exec --remote-dir /workspace/repo/actual-worktree \
   --live-path src/example.ts
 ```
 
-Repeat `--live-path` for 1–128 exact repository-relative files, at most 32 MiB each.
-Initial publication overwrites those files; choose the exact remote worktree and
-files whose overwrite is intended. Existing remote parent directories, an
-attested native V3 workspace and normal customer shell permission are required.
-The ordinary tracked Git and non-Git include/exclude policy applies; control
-paths, credentials, symlink sources and submodules are rejected. Identical
-captured content is skipped. Each file replaces atomically, and its exact
-sequence, byte count and SHA-256 acknowledgement proves individual delivery.
+Start this watcher before starting a long-running app: the one-time capability
+bootstrap still requires an exclusive fence. After bootstrap, each initial write
+and changed save uses normal customer exec authorization and a shared fence,
+compatible with ordinary app execution. There is no per-save capability read or
+files API upload. Each selected file must already exist remotely as a single-link
+regular file with existing ordinary parent directories, and each captured source
+is limited to 64 KiB. Replacement preserves the remote mode. Native targets and
+operator profiles reject this transport; there is no automatic fallback.
 
-The stream holds a shared workspace fence, blocking full sync and exclusive files
-API writes. Ctrl-C requests helper STOP and waits for terminal completion. Missing
-proof prints `termination UNVERIFIED` with the session and observed PID: the helper
-and fence may remain active and keep blocking those writes. The PID is diagnostic
-metadata, not kill authority. Starting another watcher does not recover an
-unverified session. The sandbox keeps its existing lifecycle and finite lease.
+Only an exact path, byte-count and SHA-256 ACK together with terminal exit 0
+confirms delivery. Missing proof reports `write UNCONFIRMED`, stops the watcher
+without retry, and means remote bytes may have changed; reconcile selected files
+before restarting. Each command is bounded to 30 seconds, and sandbox hard expiry
+still applies. Diagnostics measure save detection through confirmed ACK;
+application visibility must be measured separately.
 
-The separate experimental `--live` mode uses the files API with normal files
-permission and an attested existing workspace, checking its binding per save
-batch. Choose either `--live` or `--live-stream`, with explicit `--remote-dir` and
-`--live-path`; reset/preserve directories, submodule flags and `--timing-json` are
-unsupported in these modes.
+Both live modes require explicit `--remote-dir` and `--live-path`; choose only one
+mode. `--live-transport` requires `--live`.
 
-Neither mode activates a coherent snapshot, synchronizes Git metadata or restarts
-the application. Deletion/rename propagation, new unselected files, mode changes,
-concurrent-edit protection, multi-file consistency, overflow/reconnect recovery
-and submodules are unsupported. Errors stop the watcher; restarting overwrites
-the selected files again. Diagnostics separate setup and file delivery. Delivery
-does not prove application readiness or browser HMR, and there is no universal
-subsecond latency guarantee.
+Both modes perform no snapshot activation, application restart or Git metadata
+synchronization. Deletions, renames, new unselected files, mode changes, concurrent
+edit protection, submodules, overflow/reconnect recovery and multi-file consistency
+are unsupported. Errors stop the watcher. Delivery does not prove application
+readiness or browser HMR, and there is no universal subsecond latency guarantee.
+Existing finite sandbox leases and hard expiry apply.
 
 ## Install on macOS or Linux
 
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.24
+VERSION=0.11.26
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -357,14 +389,20 @@ explicitly, avoiding a self-referential release-commit SHA in these instructions
 curl -fsSL "${BASE}/multiple.intoto.jsonl" \
   -o "${RELEASE_DIR}/multiple.intoto.jsonl"
 cd "${RELEASE_DIR}"
+# Keep the existing verifier policy for release cores through 0.11.25.
+PROVENANCE_BUILDER_ID="https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1"
 SIGNER_DIGEST="cdab76e75fef610b59a7f528a6dba359e624d6af"
+if [ "$(printf '%s' "${VERSION%%-*}" | jq -R 'split(".") | map(tonumber) | . >= [0, 11, 26]')" = "true" ]; then
+  PROVENANCE_BUILDER_ID="https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.2"
+  SIGNER_DIGEST="b8a0804fa277bbc2ec297c7c2f0c8b9376c482a8"
+fi
 verify_provenance() {
   gh attestation verify "${ARCHIVE}" \
     --bundle multiple.intoto.jsonl \
     --repo haf/glimt \
     --predicate-type https://slsa.dev/provenance/v0.2 \
     --cert-identity \
-      "https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1" \
+      "${PROVENANCE_BUILDER_ID}" \
     --cert-oidc-issuer https://token.actions.githubusercontent.com \
     --source-ref "refs/tags/${TAG}" \
     --signer-digest "${SIGNER_DIGEST}" \
@@ -392,7 +430,7 @@ verify_provenance --source-digest "${SOURCE_DIGEST}" > \
   provenance-verification-pinned.json
 
 jq -e --arg source "git+https://github.com/haf/glimt@refs/tags/${TAG}" \
-  --arg sha "${SOURCE_DIGEST}" '
+  --arg sha "${SOURCE_DIGEST}" --arg builder "${PROVENANCE_BUILDER_ID}" '
     length == 1 and
     .[0].verificationResult.signature.certificate.sourceRepositoryDigest == $sha and
     .[0].verificationResult.statement._type ==
@@ -400,8 +438,7 @@ jq -e --arg source "git+https://github.com/haf/glimt@refs/tags/${TAG}" \
     .[0].verificationResult.statement.predicateType ==
       "https://slsa.dev/provenance/v0.2" and
     (.[0].verificationResult.statement.subject | length) == 18 and
-    .[0].verificationResult.statement.predicate.builder.id ==
-      "https://github.com/haf/glimt/.github/workflows/aient-cli-provenance.yml@refs/tags/v1.0.1" and
+    .[0].verificationResult.statement.predicate.builder.id == $builder and
     .[0].verificationResult.statement.predicate.buildType ==
       "https://github.com/slsa-framework/slsa-github-generator/generic@v1" and
     .[0].verificationResult.statement.predicate.invocation.configSource == {
@@ -417,8 +454,11 @@ jq -e --arg source "git+https://github.com/haf/glimt@refs/tags/${TAG}" \
 ```
 
 The verified source is `haf/glimt` and the provenance builder is the immutable
-repository-owned `aient-cli-provenance.yml@v1.0.1` workflow, while this public
-repository is only the byte-for-byte release host. That distinction is
+repository-owned `aient-cli-provenance.yml` workflow, while this public
+repository is only the byte-for-byte release host. The existing verification
+policy through release core 0.11.25 pins `v1.0.1`; core 0.11.26 and later pin
+`v1.0.2`, including their prereleases. This preserves verification of the
+published 0.11.24 release without accepting an arbitrary builder ref. That distinction is
 intentional. `gh attestation verify` performs the cryptographic and identity
 verification; the final exact predicate check is not a replacement for it. See
 [Security](SECURITY.md).
