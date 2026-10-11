@@ -24,11 +24,10 @@ to one idempotency identity, retries only that same identity across bounded
 transport ambiguity, and refuses to execute in or delete a sandbox when the
 create response cannot be trusted as the requested name.
 
-When an ordinary customer `sandbox create` receives a definitive native capacity
-denial, the CLI tries Modal using the same requested name, as `sandbox run`
-already does. It prints the allocation ID and exact recovery command. Explicit
-native selection does not fall back; other failures retain their original result. Billing-action
-and inactive-account denials are definitive failures, not ambiguous creates.
+When sandbox creation recovers from a confirmed capacity rejection, it keeps
+the requested name. For an uncertain outcome, the CLI prints the allocation ID
+and exact recovery command. Confirmed creation denials are definitive failures,
+not ambiguous creates.
 
 Organisation selection is UUID-bound and human-readable. The CLI resolves the
 authenticated display name from Aient and shows it beside the canonical
@@ -238,10 +237,10 @@ Use the separate experimental `--live` mode instead of `--live-stream` to upload
 selected files through the files API. It requires an attested existing workspace
 and normal files permission, and reads the workspace binding for each save batch.
 Its diagnostics distinguish binding reads and upload duration. The files transport
-remains the default. A long-running Modal app holds a shared workspace fence,
+remains the default. A long-running app on a compatible runtime holds a shared workspace fence,
 which can block those exclusive binding reads and uploads.
 
-For an original-bound ordinary customer Modal workspace, explicitly opt into
+For a compatible customer workspace bound to its original allocation, opt into
 finite supervised execution for each selected file:
 
 ```sh
@@ -256,7 +255,7 @@ and changed save uses normal customer exec authorization and a shared fence,
 compatible with ordinary app execution. There is no per-save capability read or
 files API upload. Each selected file must already exist remotely as a single-link
 regular file with existing ordinary parent directories, and each captured source
-is limited to 64 KiB. Replacement preserves the remote mode. Native targets and
+is limited to 64 KiB. Replacement preserves the remote mode. Unsupported targets and
 operator profiles reject this transport; there is no automatic fallback.
 
 Only an exact path, byte-count and SHA-256 ACK together with terminal exit 0
@@ -539,8 +538,8 @@ aient --profile "$PROFILE" agent worktree sync THREAD /absolute/local/repository
 ```
 
 Repeat `--path` for 1–128 existing regular files, each at most 64 KiB. The command
-writes to the Agent's current primary Modal checkout; native runtimes and another
-repository are rejected. Selected source follows the Git/extras policy; use
+writes to the Agent's current primary checkout on a compatible runtime; unsupported runtimes and
+another repository are rejected. Selected source follows the Git/extras policy; use
 `--include` to explicitly allow an ignored source. Git control files, `.aient`,
 active credentials, symlink sources and submodules are rejected.
 
