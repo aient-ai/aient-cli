@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.28` for macOS and Linux on Intel and
+The current release is `0.11.30` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -280,7 +280,7 @@ Existing finite sandbox leases and hard expiry apply.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.28
+VERSION=0.11.30
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -507,6 +507,12 @@ aient sandbox delete retained-sandbox \
 aient --profile "$PROFILE" auth logout
 ```
 
+A sandbox name keeps the options it was created with. Creating under a name that
+is live, or whose create was refused in the last few minutes, with a different
+size, CPU, memory or environment fails with `409`
+`sandbox_allocation_terms_conflict` and creates nothing: retry with the original
+options to reuse the sandbox, choose another `--name`, or delete it first.
+
 `exec --workspace PATH` accepts ordinary sync source flags and runs in the
 synchronized directory unless `--workdir` is explicit. A failed sync never starts the command;
 `sandbox workspace resume` resumes publication only, never execution. The sandbox keeps its
@@ -599,9 +605,16 @@ the validated server admission frame remains authoritative.
 A foreground reconnect resumes from its last accepted cursor;
 `sandbox execution attach SANDBOX EXECUTION --after-cursor CURSOR`
 replays retained output before following it live. Cursor acceptance occurs only
-after a whole frame is presented, so recovery may repeat one frame but cannot
-create an output gap. Use `--detach` when the initiating process should return
-after detached ownership is accepted. Each `sandbox shell` still opens a fresh
+after a whole frame is presented, so recovery may repeat one frame but never
+silently skips output. While a client is connected, the command runs at the
+client's pace. If a reconnect resumes after output the server no longer retains,
+stdout keeps only the bytes received before the gap; the retained tail goes to
+stderr between an
+`aient: output incomplete: bytes FROM-TO lost; showing retained tail (N bytes); command exited CODE`
+header and an `aient: output incomplete: end of retained tail` line, and the exit
+status is 74 instead of the command's own status. `--json` reports the gap as an
+`execution_output_gap` event and also exits 74. Use `--detach` when the
+initiating process should return after detached ownership is accepted. Each `sandbox shell` still opens a fresh
 non-resumable PTY without brokered environment/GitHub capabilities.
 
 Inspect or update explicit runtime-service repository mappings with
@@ -745,8 +758,10 @@ printf '%s' "$STRIPE_SECRET_KEY" |
     --stdin
 ```
 
-The profile selects the organisation and `--environment` is required. Secret
-values are never returned by the command. Setting a secret is separate from
+The profile selects the organisation and `--environment` is required. In a
+configured project, restricted project credentials cannot set environment secrets;
+the error names the host profile to select explicitly, for example `--profile aient`.
+Secret values are never returned by the command. Setting a secret is separate from
 enabling customer CLI workloads and from deciding which environment
 capabilities are sandbox-exportable.
 
