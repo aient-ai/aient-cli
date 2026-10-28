@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.30` for macOS and Linux on Intel and
+The current release is `0.11.32` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -280,7 +280,7 @@ Existing finite sandbox leases and hard expiry apply.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.30
+VERSION=0.11.32
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -577,7 +577,11 @@ and reports whether it came from that explicit pointer or the operational
 default compatibility fallback. An explicit `--environment` always wins.
 Use `aient environment list [--json]` to inspect available IDs and slugs, CLI
 enablement, and both default roles without exposing secrets or sandbox resource
-configuration.
+configuration. JSON also includes the stored `remediationDelegatedMergesEnabled`
+and `remediationAutoMergeEnabled` preferences. Missing fields from an older
+server mean unknown. These preferences describe Agent merge paths; current
+authority and readiness still govern each Agent merge. The automatic preference
+can remain true while its delegated parent is disabled.
 
 This release does not start a new Agent Thread. Use `agent list` to find a
 reconnectable Thread ID, or copy it from another authoritative Aient surface. The
@@ -679,7 +683,9 @@ aient sandbox sync retained-sandbox . \
 `--preserve-remote-dir` is repeatable and accepts exact repository-relative
 non-Git directories. The path must already be an ordinary remote directory;
 it cannot overlap Git content, selected uploads, reset paths, symlinks, files,
-or another preservation root. Use `--reset-remote-dir` when the intended result
+or another preservation root. `--preserve-node-modules` adds every pnpm
+`node_modules` directory that already exists in the sandbox (the root and each
+`pnpm-workspace.yaml` package, outside submodules). Use `--reset-remote-dir` when the intended result
 is an ordinary empty directory instead:
 
 ```sh
