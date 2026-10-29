@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.32` for macOS and Linux on Intel and
+The current release is `0.11.34` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -107,6 +107,15 @@ automatically. Existing receipts remain available for explicit recovery. This
 does not change broad non-Git selection or temporary staging; keep using precise
 `--include` and `--exclude` rules for selected local content.
 
+On supported V2 workspaces, new syncs retain the validated original allocation
+and workspace identity. After interrupted publication, `sandbox workspace resume OPERATION`
+can continue that same operation and revision from a fresh CLI process on a
+compatible sandbox. Resume rechecks the original target and customer authority;
+it continues publication only and does not run the requested command. Older
+records missing the original allocation identity remain preserved and cannot be
+resumed through this path. Older clients refuse the new V2 recovery records
+before mutation and preserve their bytes; use this release to resume them.
+
 Automatic cross-process preparation matching lets a repeated ordinary sync or
 workspace-backed run resume the exact retained operation when its source
 generations and authenticated authority still match. Unsupported development
@@ -201,6 +210,88 @@ opt into that preview.
 > They are not Aient CLI source, are not listed in `checksums.txt`, and are not
 > verified release artifacts.
 
+## Native Claude Code and Codex sessions
+
+Continue a stopped local native session in an existing Aient sandbox, then bring
+its conversation and Git worktree back to a new local checkout. Claude handoffs
+include the selected parent's saved subagents. Stop the local agent before
+capturing its session; native files remain the conversation authority.
+
+Use an authenticated Aient profile and a sandbox you own. Install the pinned
+native tools, then teleport the selected saved session:
+
+```sh
+aient --profile NAME sandbox session setup native-work --agent claude
+aient --profile NAME sandbox session teleport native-work /absolute/local/worktree \
+  --agent claude --session NATIVE_SESSION_UUID
+```
+
+Use `--agent codex` for Codex or `setup --agent both` to install both tools.
+The native agent uses your native login. `--config-dir`, `--credential-file`
+and `--keychain-service` select a custom native store.
+
+The execution budget defaults to eight hours. Choose another finite budget
+with `--budget 8h`; it must fit the sandbox's remaining lifetime. In the native
+terminal, press tmux's `Ctrl-B`, then `D` to detach. You can close the local
+terminal and reconnect to the same running process:
+
+```sh
+aient --profile NAME sandbox session attach native-work --agent claude
+aient --profile NAME sandbox session status native-work --agent claude
+```
+
+Reattachment never starts a replacement or resets the execution deadline.
+`teleport --detach` starts without attaching. `session watch native-work`
+runs a separate local observer.
+
+Add `--sync` to `teleport`, `attach` or `watch` for optional continuous
+synchronization of regular source files in both directions while that local
+observer is running:
+
+```sh
+aient --profile NAME sandbox session attach native-work --agent claude --sync
+```
+
+The handoff retains its source selection: tracked files stay selected, ordinary
+nonignored new files are included, `--include` adds declared ignored paths,
+and `--exclude` omits matching non-Git paths. Explicitly selected submodules
+retain their selected namespaces. The watcher propagates new files, deletions,
+renames and mode changes. Overlapping edits use timestamp-based save ordering
+with guest-clock normalization; equal times choose the remote copy.
+Synchronization is per file and does not merge concurrent edits. Git metadata
+and live symlink changes remain outside the watcher. Files above 32 MiB are
+reported and suspended without reading their bodies; other files continue.
+Full handoff and return preserve larger files within workspace transfer limits.
+A sleeping laptop has no running observer to copy files.
+
+Exit the remote agent with `/exit` or `Ctrl-D`, then return its saved state:
+
+```sh
+aient --profile NAME sandbox session return native-work --agent claude --resume
+```
+
+Return creates a new local checkout beside the original. It preserves remote
+Git commits, staged and unstaged changes, deletions, nonignored new files and
+initialized child repositories. Use `--output /absolute/new/checkout` to choose
+the destination. Omit `--resume` to print the exact local native resume command.
+Verified return inputs survive interruption; a completed return retries offline
+only while its destination still matches. Later local edits and the original
+checkout are preserved. `session stop` cancels execution and does not establish
+the saved exit that return requires.
+
+Native tools perform OAuth refresh. While attached or watching, the CLI saves
+accepted native credential updates to a private host backup and propagates
+them to tracked sandboxes with the same native login and Aient identity.
+Reconnect catches up unavailable sandboxes. Claude updates follow increasing
+credential expiry; changed Codex credentials follow arrival order. Return
+carries accepted credentials into an isolated local native configuration.
+Credentials travel separately from source code and conversation history.
+Adapted AgentBox code retains its MIT notice in `LICENSE.agentbox`.
+
+These commands require a compatible Aient sandbox terminal service. They move
+saved history and files; the remote native process remains bounded by its
+execution budget and the sandbox's finite lifetime.
+
 ## Experimental selected-file live sync
 
 Select existing local regular source files
@@ -280,7 +371,7 @@ Existing finite sandbox leases and hard expiry apply.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.32
+VERSION=0.11.34
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -330,25 +421,31 @@ fi
 Install without requiring Python, Node.js, `uv`, or a package manager:
 
 ```sh
-if [ "$(tar -tzf "${ARCHIVE}")" != "aient" ]; then
-  echo "Archive must contain exactly one path named aient" >&2
-  exit 1
-fi
-if [ "$(tar -tvzf "${ARCHIVE}" | awk 'NR == 1 { print substr($1, 1, 1) }')" != "-" ]; then
-  echo "Archive entry aient must be a regular file" >&2
+ARCHIVE_MEMBERS="$(tar -tzf "${ARCHIVE}")" || exit 1
+SORTED_MEMBERS="$(printf '%s\n' "${ARCHIVE_MEMBERS}" | LC_ALL=C sort)"
+case "${SORTED_MEMBERS}" in
+  aient|"LICENSE.agentbox
+aient") ;;
+  *) echo "Archive must contain aient and optionally LICENSE.agentbox, with no other paths" >&2; exit 1 ;;
+esac
+ARCHIVE_DETAILS="$(tar -tvzf "${ARCHIVE}")" || exit 1
+if ! printf '%s\n' "${ARCHIVE_DETAILS}" | awk 'substr($1, 1, 1) != "-" { invalid = 1 } END { exit invalid }'; then
+  echo "Every archive member must be a regular file" >&2
   exit 1
 fi
 STAGE_DIR="$(mktemp -d)"
-tar -xzf "${ARCHIVE}" -C "${STAGE_DIR}"
+tar -xzf "${ARCHIVE}" -C "${STAGE_DIR}" aient
 mkdir -p "${HOME}/bin"
 install -m 0755 "${STAGE_DIR}/aient" "${HOME}/bin/.aient.new"
 mv "${HOME}/bin/.aient.new" "${HOME}/bin/aient"
 "${HOME}/bin/aient" version
 ```
 
-The checksum selection must produce exactly one manifest entry, and the archive
-must contain exactly one regular file named `aient`; do not weaken either
-check. Ensure `${HOME}/bin` is on `PATH`. Upgrade by repeating the download,
+The checksum selection must produce exactly one manifest entry. The archive must
+contain the regular file `aient` and may also contain the regular file
+`LICENSE.agentbox`, which preserves the MIT notice for adapted AgentBox code.
+Older release archives contain only `aient`. No other paths or file types are
+accepted. Keep the notice with redistributed copies. Ensure `${HOME}/bin` is on `PATH`. Upgrade by repeating the download,
 verification, and atomic install with a newer published version. Published
 release assets are immutable; Aient fixes a bad release with a new version.
 
