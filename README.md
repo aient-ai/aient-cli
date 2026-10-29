@@ -240,6 +240,11 @@ aient --profile NAME sandbox session attach native-work --agent claude
 aient --profile NAME sandbox session status native-work --agent claude
 ```
 
+The CLI requests 24-hour sandbox retention, capped at the existing hard expiry
+of 24 hours from sandbox creation. This leaves a finite recovery window after
+the command ends; an older sandbox has less time remaining. Return before that
+expiry: surviving execution metadata cannot recover an expired sandbox.
+
 Reattachment never starts a replacement or resets the execution deadline.
 `teleport --detach` starts without attaching. `session watch native-work`
 runs a separate local observer.
@@ -276,8 +281,12 @@ initialized child repositories. Use `--output /absolute/new/checkout` to choose
 the destination. Omit `--resume` to print the exact local native resume command.
 Verified return inputs survive interruption; a completed return retries offline
 only while its destination still matches. Later local edits and the original
-checkout are preserved. `session stop` cancels execution and does not establish
-the saved exit that return requires.
+checkout are preserved. After timeout or cancellation with `session stop`, use
+the same return command to recover the last persisted conversation and files.
+Return requires a recorded native process identity and fresh proof that it and
+its process group and terminal session have no live writers. Missing proof,
+a live writer or an unknown execution outcome refuses capture. Recovery does
+not promise to restore an interrupted model turn or unsaved progress.
 
 Native tools perform OAuth refresh. While attached or watching, the CLI saves
 accepted native credential updates to a private host backup and propagates
