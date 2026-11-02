@@ -4,7 +4,7 @@ The `aient` command runs a local workspace in an isolated Aient sandbox. This
 repository is the customer-facing binary distribution channel; it intentionally
 does not contain the private CLI source.
 
-The current release is `0.11.32` for macOS and Linux on Intel and
+The current release is `0.11.39` for macOS and Linux on Intel and
 Arm. Each release includes:
 
 - one static `aient` archive for each supported platform;
@@ -12,6 +12,14 @@ Arm. Each release includes:
 - SPDX JSON SBOMs;
 - Sigstore verification bundles; and
 - SLSA provenance tied to Aient's private build workflow.
+
+`sandbox run` and `sandbox exec --workspace` accept `--workspace-commit`
+with a full Git commit ID to sync that commit without staged, unstaged, or
+untracked local edits. Selected submodules use the Gitlinks in that commit.
+Use the default remote directory; extra-file selection, reset, and automatic
+`node_modules` preservation are unavailable in this mode. If a private HTTPS
+submodule needs a global credential helper or Git URL rewrite, initialize it
+with your normal Git setup or configure an SSH submodule URL override.
 
 Workspace synchronization requires a complete, self-contained local Git
 repository. Shallow, partial/promisor, alternate-backed, grafted, or
@@ -23,6 +31,22 @@ Named sandbox creation is replay-safe. The CLI binds one public sandbox name
 to one idempotency identity, retries only that same identity across bounded
 transport ambiguity, and refuses to execute in or delete a sandbox when the
 create response cannot be trusted as the requested name.
+
+`aient review OWNER/REPO#NUMBER` asks aient-cto[bot] for an independent review
+of a pull request's current head, posted as a GitHub review: an approval, a
+change request with inline comments, or a comment without a verdict. While it
+waits it prints progress (`queued`, then `reviewing`), then the outcome and the
+review's link (`--no-wait` returns once the review is requested, `--json` prints
+the review). A repeat for the same head returns the review already given, at
+once. It needs the repository connected to your organisation and the Aient CTO
+GitHub App installed on it, and uses the `aient.agent.write` scope (plus
+`aient.agent.read` to wait). When no review can be given, it says what to do and
+exits non-zero.
+
+`aient sandbox create --env KEY=VALUE` (repeatable) sets an environment variable
+for the sandbox's processes. The values are stored with the sandbox and are not
+secret; use environment secrets for credentials. A sandbox whose start-up keeps
+failing ends `failed`, and the create prints its reason.
 
 When sandbox creation recovers from a confirmed capacity rejection, it keeps
 the requested name. For an uncertain outcome, the CLI prints the allocation ID
@@ -39,8 +63,9 @@ returns trusted migration guidance with the resolved name and UUID.
 Environment-bound sandbox operations carry one authenticated
 organisation/environment/repository tuple across create, synchronization,
 files, execution, observation, lease refresh, and deletion. New customer
-workspace operations retain that tuple in `workspace-operation-bundle-v2` and
-resume with the exact authority instead of weakening to owner-only access.
+workspace operations record that tuple in `workspace-operation-bundle-v2` and
+use the exact authority for status and discard instead of weakening to
+owner-only access.
 Legacy V1 receipts remain readable under their established compatibility rules.
 
 The conservative supervised execution timeout ceiling is `23h56m18s`.
@@ -91,33 +116,38 @@ An exact Thread ID or title query can be combined with status, archive, page
 size, and cursor filters. Human pagination prints a continuation command that
 preserves the active filters; `--json` emits one versioned page.
 
-Retained workspace-operation storage under `~/.aient/workspace-operations` is
-also bounded. Inspect it locally, without authentication or network access:
+Workspace operations live in `~/.aient/workspace-operations` only while the
+command that started them runs. When a `sync`, `run` or `exec --workspace`
+operation ends, whether it activated, failed or was cancelled, nothing of it is
+kept there. If a sync is interrupted, rerun the command: it syncs the worktree
+as it is now; nothing is resumed. `sandbox run` deletes its sandbox after a
+failed sync unless `--keep` is given. Removing the local record can itself time
+out or fail, for example while another process holds the store lock for more
+than 10 seconds: the record then stays until the next sweep, and if the
+operation had already activated, `sandbox run` keeps the sandbox, reports that
+cleanup needs attention and runs no command. Otherwise only a killed CLI leaves
+a directory behind, and the next sync or `sandbox workspace list` removes it. `list`
+shows the store without authentication or network access; `status` and
+`discard` reconcile the server side of an operation that is still recorded:
 
 ```sh
 aient sandbox workspace list [--json]
-aient sandbox workspace resume OPERATION
+aient sandbox workspace status OPERATION
 aient sandbox workspace discard OPERATION
 ```
 
-New whole-bundle publication is limited to an aggregate 10 GiB and must leave
-at least 1 GiB of filesystem space after copying. There is no count limit, no
-configuration override, and the CLI does not evict retained operations
-automatically. Existing receipts remain available for explicit recovery. This
-does not change broad non-Git selection or temporary staging; keep using precise
-`--include` and `--exclude` rules for selected local content.
-
-Automatic cross-process preparation matching lets a repeated ordinary sync or
-workspace-backed run resume the exact retained operation when its source
-generations and authenticated authority still match. Unsupported development
-targets announce the explicit workspace-resume fallback before capture.
+When one selected submodule cannot use the Git cache (a network, DNS or sign-in
+discovery failure, an unavailable server, or a repository with no cache
+authority), that submodule uploads directly on its own while the root keeps its
+cached delta, instead of the whole workspace uploading. A cancellation, a
+changed capture, or an authoritative refusal of that repository (HTTP 401, 403,
+409, or 404 other than an unregistered repository) still stops the cache
+operation. The root cache lookup and root seed start retry network failures up
+to three attempts.
 
 When cache admission becomes available after a rollout delay, the CLI
-reconciles and retries only the exact retained seed intent. If capability
-unavailability persists, rerun the original command unchanged. When the
-captured source generations and authenticated authority still match,
-preparation matching resumes the same retained operation rather than
-recapturing the workspace. Root and selected repositories use one
+retries the seed within the same command; a persistent refusal falls back to a
+direct sync like any other cache failure. Root and selected repositories use one
 rollout-compatible Git object-pack representation, while older
 selected-repository receipts remain readable. Committed-history reuse for a
 selected repository requires it to be independently server-authorized;
@@ -280,7 +310,7 @@ Existing finite sandbox leases and hard expiry apply.
 Set the release version and select the archive for your machine:
 
 ```sh
-VERSION=0.11.32
+VERSION=0.11.39
 case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) TARGET=darwin_amd64 ;;
   Darwin-arm64) TARGET=darwin_arm64 ;;
@@ -469,6 +499,14 @@ From a configured project, select the refresh-backed customer OAuth profile
 explicitly with `aient --profile NAME agent ...`. Ambient project access is
 sandbox-scoped and intentionally does not grant Agent conversation authority.
 
+Use `agent message --capability computer-use` for a browser or Linux desktop task.
+The selection applies to that message's queued task; it cannot change active work or
+be combined with `--immediate`. Later ordinary messages use the Agent's defaults.
+Computer use provides compact accessibility observations, native input and optional
+screenshots, with runtime-managed setup, recording and cleanup. Existing permissions
+and sandbox admission still apply. For an exact retry, reuse the operation ID,
+message and capability selection; changed selections are rejected.
+
 ```sh
 PROFILE=aient
 aient auth login --profile "$PROFILE"
@@ -476,7 +514,7 @@ aient --profile "$PROFILE" auth status
 aient --profile "$PROFILE" agent list --search QUERY --status active --limit 20
 aient --profile "$PROFILE" agent status THREAD [--json]
 aient --profile "$PROFILE" agent events THREAD [--follow] [--json]
-aient --profile "$PROFILE" agent message THREAD MESSAGE... [--operation-id UUID] [--immediate] [--json]
+aient --profile "$PROFILE" agent message THREAD MESSAGE... [--operation-id UUID] [--immediate] [--capability computer-use] [--json]
 aient --profile "$PROFILE" agent respond THREAD INTERACTION ANSWER... [--operation-id UUID] [--json]
 aient --profile "$PROFILE" agent cancel THREAD [--operation-id UUID] [--json]
 aient --profile "$PROFILE" agent chat THREAD
@@ -515,7 +553,7 @@ options to reuse the sandbox, choose another `--name`, or delete it first.
 
 `exec --workspace PATH` accepts ordinary sync source flags and runs in the
 synchronized directory unless `--workdir` is explicit. A failed sync never starts the command;
-`sandbox workspace resume` resumes publication only, never execution. The sandbox keeps its
+rerun it to sync the worktree as it is now. The sandbox keeps its
 existing owner and retention policy; sync may renew its lease. This command neither creates nor
 releases it. `--detach` waits for sync and execution acceptance. For this combined command,
 `--timing-json` reports synchronization only, not command execution or output latency.
